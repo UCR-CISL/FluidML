@@ -16,7 +16,7 @@ from typing import Callable, List, Tuple
 
 
 @pytest.mark.parametrize(
-    "name, url, entry_point, inputs",
+    "name, url, entry, inputs",
     [
         (
             "googlenet-12",
@@ -35,7 +35,7 @@ from typing import Callable, List, Tuple
 def test_model(
     name: str,
     url: str,
-    entry_point: str,
+    entry: str,
     inputs: Tuple[Tuple[Tuple[int, ...], np.dtype]],
 ) -> None:
     digest: int = hashlib.md5(name.encode()).hexdigest()
@@ -59,7 +59,7 @@ def test_model(
         parsed_args: argparse.Namespace = m.parse_arguments(onnx_args)
         m.main(parsed_args)
     compiled_flatbuffer: bytes = fluidml.compiler.compile_file(
-        mlir_path, target_backends=["llvm-cpu"]
+        mlir_path, entry, target_backends=["llvm-cpu"]
     )
     config: iree.runtime.Config = iree.runtime.Config("local-task")
     ctx: iree.runtime.SystemContext = iree.runtime.SystemContext(config=config)
@@ -70,7 +70,7 @@ def test_model(
     inputs: Tuple[np.ndarray] = tuple(
         np.random.rand(*input_shape).astype(dtype) for input_shape, dtype in inputs
     )
-    f: Callable = ctx.modules.module[entry_point]
+    f: Callable = ctx.modules.module[entry]
     session: onnxruntime.InferenceSession = onnxruntime.InferenceSession(
         onnx_path, providers=["CPUExecutionProvider"]
     )
