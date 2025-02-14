@@ -1,4 +1,5 @@
 import argparse
+import fluidml.compiler
 import hashlib
 import iree.compiler
 import iree.compiler.tools.import_onnx.__main__ as m
@@ -57,7 +58,7 @@ def test_model(
         ]
         parsed_args: argparse.Namespace = m.parse_arguments(onnx_args)
         m.main(parsed_args)
-    compiled_flatbuffer: bytes = iree.compiler.compile_file(
+    compiled_flatbuffer: bytes = fluidml.compiler.compile_file(
         mlir_path, target_backends=["llvm-cpu"]
     )
     config: iree.runtime.Config = iree.runtime.Config("local-task")
