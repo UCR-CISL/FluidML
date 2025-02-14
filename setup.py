@@ -12,6 +12,13 @@ setuptools.setup(
         "iree-base-compiler@git+https://github.com/UCR-CISL/iree-fluidml.git@fluidml-dev#subdirectory=compiler",
         "iree-base-runtime@git+https://github.com/UCR-CISL/iree-fluidml.git@fluidml-dev#subdirectory=runtime",
         "numpy",
-        "onnx",
     ],
+    extras_require={
+        "test": [
+            "onnx",
+            "onnxruntime",
+            "pytest",
+            "requests",
+        ]
+    },
 )
