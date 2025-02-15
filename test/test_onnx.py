@@ -30,6 +30,18 @@ from typing import Callable, List, Tuple
             "torch-jit-export",
             (((1, 3, 224, 224), np.float32),),
         ),
+        (
+            "resent50-v1-12",
+            "https://github.com/onnx/models/raw/refs/heads/main/validated/vision/classification/resnet/model/resnet50-v1-12.onnx",
+            "mxnet_converted_model",
+            (((1, 3, 224, 224), np.float32),),
+        ),
+        (
+            "squeezenet1.0-12",
+            "https://github.com/onnx/models/raw/refs/heads/main/validated/vision/classification/squeezenet/model/squeezenet1.0-12.onnx",
+            "squeezenet_old",
+            (((1, 3, 224, 224), np.float32),),
+        ),
     ],
 )
 def test_model(
@@ -48,6 +60,10 @@ def test_model(
         model_bin: bytes = requests.get(url, allow_redirects=True).content
         model: onnx.ModelProto = onnx.load_model_from_string(model_bin)
         model: onnx.ModelProto = onnx.version_converter.convert_version(model, 17)
+        for input in model.graph.input:
+            for dim in input.type.tensor_type.shape.dim:
+                if not dim.HasField("dim_value"):
+                    dim.dim_value = 1
         onnx.save_model(model, onnx_path)
         onnx_args: List[str] = [
             onnx_path,
