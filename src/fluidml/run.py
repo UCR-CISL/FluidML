@@ -1,11 +1,20 @@
 import iree.compiler.dialects._flow_ops_gen
+import iree.compiler.dialects._hal_ops_gen
 import iree.compiler.dialects._util_ops_gen
 import iree.compiler.ir
 
 from typing import List, Union
 
+from .analyzer import Analyzer
+
 
 def run(flow: Union[str, bytes], entry: str):
+    ops: List[iree.compiler.ir.Operation] = prepare(flow, entry)
+    analyzer: Analyzer = Analyzer()
+    analyzer.run(ops)
+
+
+def prepare(flow: Union[str, bytes], entry: str) -> List[iree.compiler.ir.Operation]:
     with iree.compiler.ir.Context():
         mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(flow)
         func_ops: List[iree.compiler.dialects._util_ops_gen.FuncOp] = list(
@@ -28,6 +37,9 @@ def run(flow: Union[str, bytes], entry: str):
                 isinstance(op, iree.compiler.dialects._flow_ops_gen.DispatchOp)
                 or isinstance(op, iree.compiler.dialects._flow_ops_gen.TensorReshapeOp)
                 or isinstance(op, iree.compiler.dialects._flow_ops_gen.TensorSplatOp)
+                or isinstance(op, iree.compiler.dialects._flow_ops_gen.TensorUpdateOp)
+                or isinstance(op, iree.compiler.dialects._hal_ops_gen.TensorImportOp)
+                or isinstance(op, iree.compiler.dialects._hal_ops_gen.TensorExportOp)
             )
         ]
-        # TODO(Jinjie Liu): Do something here.
+        return ops

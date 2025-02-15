@@ -3,7 +3,7 @@ import iree.compiler
 
 from typing import List, Union
 
-from .build import run
+from .run import run
 
 COMPILATION_STAGES: List = [
     "start",
