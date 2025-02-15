@@ -3,16 +3,21 @@ import iree.compiler.dialects._hal_ops_gen
 import iree.compiler.dialects._util_ops_gen
 import iree.compiler.ir
 
+from typing import List
+
 
 class OpWrapper(object):
-    def __init__(self, op: iree.compiler.ir.Operation):
+    def __init__(self, op: iree.compiler.ir.Operation, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.op = op
 
     @staticmethod
     def from_op(op: iree.compiler.ir.Operation) -> "OpWrapper":
-        if isinstance(
-            op, iree.compiler.dialects._flow_ops_gen.TensorSplatOp
-        ) or isinstance(op, iree.compiler.dialects._hal_ops_gen.TensorImportOp):
+        if (
+            isinstance(op, iree.compiler.dialects._flow_ops_gen.TensorSplatOp)
+            or isinstance(op, iree.compiler.dialects._hal_ops_gen.TensorImportOp)
+            or isinstance(op, iree.compiler.dialects._util_ops_gen.GlobalLoadOp)
+        ):
             return SourceOpWrapper(op)
         elif isinstance(
             op, iree.compiler.dialects._flow_ops_gen.TensorUpdateOp
@@ -27,15 +32,38 @@ class OpWrapper(object):
 
 
 class SourceOpWrapper(OpWrapper):
-    def __init__(self, op):
-        super().__init__(op)
+    def __init__(
+        self,
+        op: iree.compiler.ir.Operation,
+        outputs: List[OpWrapper] = [],
+        *args,
+        **kwargs,
+    ):
+        super().__init__(op=op, *args, **kwargs)
+        self.outputs: List[OpWrapper] = outputs
 
 
 class DestinationOpWrapper(OpWrapper):
-    def __init__(self, op):
-        super().__init__(op)
+    def __init__(
+        self,
+        op: iree.compiler.ir.Operation,
+        inputs: List[OpWrapper] = [],
+        *args,
+        **kwargs,
+    ):
+        super().__init__(op=op, *args, **kwargs)
+        self.inputs: List[OpWrapper] = inputs
 
 
 class IntermediateOpWrapper(OpWrapper):
-    def __init__(self, op):
-        super().__init__(op)
+    def __init__(
+        self,
+        op: iree.compiler.ir.Operation,
+        inputs: List[OpWrapper] = [],
+        outputs: List[OpWrapper] = [],
+        *args,
+        **kwargs,
+    ):
+        super().__init__(op=op, *args, **kwargs)
+        self.inputs: List[OpWrapper] = inputs
+        self.outputs: List[OpWrapper] = outputs
