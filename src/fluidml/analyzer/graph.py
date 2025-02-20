@@ -30,9 +30,8 @@ class Graph(object):
     ) -> List[iree.compiler.ir.Value]:
         if isinstance(op, iree.compiler.ir.OpView):
             op: OpWrapper = OpWrapper.from_op(op)
-        assert op in self.wrappers
+        assert op in self.wrappers, f"Op {op} is not in the graph."
         inputs: List[iree.compiler.ir.Value] = [input for input in op.inputs]
-        assert all(map(lambda input: input.get_name() in self.tensor_names, inputs))
         return inputs
 
     def get_outputs(
@@ -40,9 +39,8 @@ class Graph(object):
     ) -> List[iree.compiler.ir.Value]:
         if isinstance(op, iree.compiler.ir.OpView):
             op: OpWrapper = OpWrapper.from_op(op)
-        assert op in self.wrappers
+        assert op in self.wrappers, f"Op {op} is not in the graph."
         outputs: List[iree.compiler.ir.Value] = [output for output in op.outputs]
-        assert all(map(lambda output: output.get_name() in self.tensor_names, outputs))
         return outputs
 
     def get_prevs(
@@ -83,7 +81,6 @@ class Graph(object):
             queue: List[OpWrapper] = [wrapper]
             ops: List[OpWrapper] = []
             while queue:
-                assert all(map(lambda op: op in self.wrappers, queue))
                 wrapper: OpWrapper = queue.pop()
                 if wrapper in visited:
                     continue
@@ -92,12 +89,10 @@ class Graph(object):
                 ops += [wrapper]
                 for op_view in self.get_prevs(wrapper) + self.get_nexts(wrapper):
                     op_wrapper: OpWrapper = OpWrapper.from_op(op_view)
-                    assert op_wrapper in self.wrappers
                     queue += [op_wrapper]
             assert ops, "Ops cannot be empty."
             graph: Graph = Graph(ops)
             graphs += [graph]
-        assert all(map(lambda op: op in visited, self.wrappers))
         return graphs
 
     @cached_property
