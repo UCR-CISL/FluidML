@@ -1,7 +1,5 @@
 import setuptools
 
-print(setuptools.find_packages("src"))
-
 setuptools.setup(
     name="fluidml",
     author="Jinjie Liu",
