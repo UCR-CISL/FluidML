@@ -19,6 +19,14 @@ def run(flow: Union[str, bytes], entry: str):
                 mod.body.operations,
             )
         )
+        if not func_ops:
+            func_ops = list(
+                filter(
+                    lambda op: isinstance(op, iree.compiler.dialects.util.FuncOp)
+                    and op.sym_name.value == entry,
+                    mod.body.operations,
+                )
+            )
         assert (
             len(func_ops) == 1
         ), f"For entry function {entry}, expected only one async function {entry}$async, but got {len(func_ops)}."

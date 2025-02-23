@@ -44,7 +44,7 @@ from typing import Callable, List, Tuple
         ),
     ],
 )
-def test_model(
+def test_onnx(
     name: str,
     url: str,
     entry: str,
@@ -91,7 +91,7 @@ def test_model(
         onnx_path, providers=["CPUExecutionProvider"]
     )
 
-    iree_result = f(*inputs).to_host()
+    iree_result: np.ndarray = f(*inputs).to_host()
     (onnx_result,) = session.run(
         None, dict(zip(map(lambda input: input.name, session.get_inputs()), inputs))
     )
