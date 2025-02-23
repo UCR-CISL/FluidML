@@ -3,7 +3,6 @@ import iree.compiler.dialects.flow
 import iree.compiler.dialects.func
 import iree.compiler.dialects.hal
 import iree.compiler.dialects.util
-import numpy as np
 import os
 import re
 
@@ -24,11 +23,6 @@ class Profiler(object):
         self.__pattern: re.Pattern = re.compile(
             r"^!flow\.dispatch\.tensor<(readonly|writeonly|readwrite):tensor<((?:\d+x)+f\d+)>>$"
         )
-        self.__str2dtype: Dict[str, np.dtype] = {
-            "f16": np.float16,
-            "f32": np.float32,
-            "f64": np.float64,
-        }
 
     def run(
         self, mod: iree.compiler.ir.Module
@@ -48,8 +42,8 @@ class Profiler(object):
                                     kernels += [operation]
 
         for kernel in kernels:
-            kernel_name: str = str(kernel.sym_name)
-            kernel_name = kernel_name.strip('"')
+            kernel_name: str = str(kernel.sym_name).strip('"')
+            mod_name: str = str(kernel.parent.parent.opview.sym_name).strip('"')
             input_types: List[Tuple[Tuple[int, ...], str, iree.compiler.ir.Type]] = []
             result_types: List[Tuple[Tuple[int, ...], str, iree.compiler.ir.Type]] = []
             types: List[iree.compiler.ir.Type] = []
@@ -69,10 +63,9 @@ class Profiler(object):
                 )
                 if rw in {"readonly", "readwrite"}:
                     input_types += [info]
-                if rw in {"writeonly", "readwrite"}:
+                if rw in {"writeonly"}:
                     result_types += [info]
             with mod.context, kernel.location:
-                # TODO(Jinjie Liu): lose the module name, and remember to add it back
                 fname: str = f"invoke_{kernel_name}$async"
                 ftype: iree.compiler.ir.Attribute = iree.compiler.ir.Attribute.parse(
                     f"({', '.join(['!hal.buffer_view' for _ in input_types])}) -> ({', '.join(['!hal.buffer_view' for _ in result_types])})"
@@ -114,25 +107,35 @@ class Profiler(object):
                         )
                         arguments += [argument]
                     exports: Union[
-                        iree.compiler.ir.OpResult, List[iree.compiler.ir.OpResult]
+                        iree.compiler.ir.Operation,
+                        iree.compiler.ir.OpResult,
+                        List[iree.compiler.ir.Operation],
+                        List[iree.compiler.ir.OpResult],
                     ] = iree.compiler.dialects.flow.dispatch(
-                        export_types, [], [kernel_name], arguments, [], []
+                        export_types,
+                        [],
+                        iree.compiler.ir.Attribute.parse(
+                            f'"[@{mod_name}::@{kernel_name}]"'
+                        ),
+                        arguments,
+                        [],
+                        [],
                     )
-                    if isinstance(exports, iree.compiler.ir.OpResult):
+                    if not isinstance(exports, list):
                         exports = [exports]
-                    rets: List[iree.compiler.ir.OpResult] = []
+                    rets: List[iree.compiler.ir.Operation] = []
                     for export in exports:
-                        target: iree.compiler.ir.Type = iree.compiler.ir.Type.parse(
-                            "!hal.buffer_view"
-                        )
-                        source_encoding: iree.compiler.ir.TypeAttr = (
-                            iree.compiler.ir.TypeAttr.get(source_type)
-                        )
-                        # TODO(Jinjie Liu): `export` op has an unexpected `as` attribute, and figure out how to avoid it
-                        ret: iree.compiler.ir.OpResult = (
-                            iree.compiler.dialects.hal.tensor_export(
-                                target, export, source_encoding, []
+                        if isinstance(export, iree.compiler.ir.OpResult):
+                            target: iree.compiler.ir.Type = iree.compiler.ir.Type.parse(
+                                "!hal.buffer_view"
                             )
-                        )
-                        rets += [ret]
+                            source_encoding: iree.compiler.ir.TypeAttr = (
+                                iree.compiler.ir.TypeAttr.get(export.type)
+                            )
+                            ret: iree.compiler.ir.OpResult = (
+                                iree.compiler.dialects.hal.tensor_export(
+                                    target, export, source_encoding, []
+                                )
+                            )
+                            rets += [ret]
                     iree.compiler.dialects.util.return_(rets)
