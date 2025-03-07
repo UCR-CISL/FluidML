@@ -2,14 +2,18 @@ import iree.compiler.dialects.flow
 import iree.compiler.dialects.hal
 import iree.compiler.dialects.util
 import iree.compiler.ir
+import os
 
 from typing import List, Union
 
 from .analyzer import Analyzer
 from .profiler import Profiler
 
+times: int = int(os.getenv("FLUIDML_TIME", 1))
+worker_num: int = int(os.getenv("FLUIDML_WORKER_NUM", os.cpu_count()))
 
-def run(flow: Union[str, bytes], entry: str):
+
+def run(flow: Union[str, bytes], entry: str, **kwargs):
     with iree.compiler.ir.Context() as ctx:
         mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(flow, ctx)
         func_ops: List[iree.compiler.dialects.util.FuncOp] = list(
@@ -33,5 +37,5 @@ def run(flow: Union[str, bytes], entry: str):
         [func_op] = func_ops
         analyzer: Analyzer = Analyzer(ctx)
         analyzer.run(func_op)
-        profiler: Profiler = Profiler(ctx)
+        profiler: Profiler = Profiler(ctx, times, worker_num, kwargs)
         profiler.run(mod)

@@ -11,26 +11,26 @@ class Graph(object):
         self, ops: List[Union[OpWrapper, iree.compiler.ir.OpView]], *args, **kwargs
     ) -> "Graph":
         super().__init__(*args, **kwargs)
-        self.wrappers: List[OpWrapper] = []
+        self._wrappers: List[OpWrapper] = []
         for op in ops:
             if isinstance(op, OpWrapper):
-                self.wrappers += [op]
+                self._wrappers += [op]
             elif isinstance(op, iree.compiler.ir.OpView):
-                self.wrappers += [OpWrapper.from_op(op)]
+                self._wrappers += [OpWrapper.from_op(op)]
             else:
                 raise NotImplementedError(
                     f"The type of op {op} is not supported as a member of `Graph` yet, which is {type(op)}."
                 )
 
     def __repr__(self) -> str:
-        return "\n".join(map(lambda wrapper: wrapper.op.get_asm(), self.wrappers))
+        return "\n".join(map(lambda wrapper: wrapper.op.get_asm(), self._wrappers))
 
     def get_inputs(
         self, op: Union[OpWrapper, iree.compiler.ir.OpView]
     ) -> List[iree.compiler.ir.Value]:
         if isinstance(op, iree.compiler.ir.OpView):
             op: OpWrapper = OpWrapper.from_op(op)
-        assert op in self.wrappers, f"Op {op} is not in the graph."
+        assert op in self._wrappers, f"Op {op} is not in the graph."
         inputs: List[iree.compiler.ir.Value] = [input for input in op.inputs]
         return inputs
 
@@ -39,7 +39,7 @@ class Graph(object):
     ) -> List[iree.compiler.ir.Value]:
         if isinstance(op, iree.compiler.ir.OpView):
             op: OpWrapper = OpWrapper.from_op(op)
-        assert op in self.wrappers, f"Op {op} is not in the graph."
+        assert op in self._wrappers, f"Op {op} is not in the graph."
         outputs: List[iree.compiler.ir.Value] = [output for output in op.outputs]
         return outputs
 
@@ -73,7 +73,7 @@ class Graph(object):
         return graphs
 
     def _partitioned(self) -> List["Graph"]:
-        wrappers: Set[OpWrapper] = set(self.wrappers)
+        wrappers: Set[OpWrapper] = set(self._wrappers)
         visited: Set[OpWrapper] = set()
         graphs: List[Graph] = []
         while wrappers:
@@ -97,12 +97,12 @@ class Graph(object):
 
     @cached_property
     def wrappers_set(self) -> Set[OpWrapper]:
-        return set(self.wrappers)
+        return set(self._wrappers)
 
     @cached_property
     def tensors(self) -> Set[iree.compiler.ir.Value]:
-        return set(tensor for wrapper in self.wrappers for tensor in wrapper.tensors)
+        return set(tensor for wrapper in self._wrappers for tensor in wrapper.tensors)
 
     @cached_property
     def tensor_names(self) -> Set[str]:
-        return set(name for wrapper in self.wrappers for name in wrapper.tensor_names)
+        return set(name for wrapper in self._wrappers for name in wrapper.tensor_names)

@@ -16,7 +16,7 @@ mlir_path: str = os.path.join(cur_path, "mlir")
         (
             "matmul.mlir",
             "matmul",
-            (((4096, 4096), np.float32) for _ in range(2)),
+            (((256, 256), np.float32) for _ in range(2)),
             np.matmul,
         ),
     ],

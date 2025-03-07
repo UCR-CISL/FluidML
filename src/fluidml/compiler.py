@@ -1,7 +1,7 @@
 import iree.compiler
 
 
-from typing import List, Union
+from typing import Any, Dict, List, Union
 
 from .run import run
 
@@ -50,12 +50,16 @@ def compile_str(input_str: Union[str, bytes], entry: str, **kwargs) -> bytes:
     compile_to_index: int = COMPILATION_STAGES.index(compile_to_stage)
     flow_index: int = COMPILATION_STAGES.index("flow")
     if compile_from_index <= flow_index <= compile_to_index:
-        flow: bytes = iree.compiler.compile_str(
-            input_str, extra_args=[f"--compile-to=flow", *extra_args], **kwargs
-        )
-        run(flow, entry)
-        return iree.compiler.compile_str(
-            flow, extra_args=[f"--compile-from=flow", *extra_args], **kwargs
-        )
+        start_to_flow_kwargs: Dict[str, Any] = {
+            "extra_args": [f"--compile-to=flow", *extra_args],
+            **kwargs,
+        }
+        flow_to_end_kwargs: Dict[str, Any] = {
+            "extra_args": [f"--compile-from=flow", *extra_args],
+            **kwargs,
+        }
+        flow: bytes = iree.compiler.compile_str(input_str, **start_to_flow_kwargs)
+        run(flow, entry, **flow_to_end_kwargs)
+        return iree.compiler.compile_str(flow, **flow_to_end_kwargs)
     else:
         return iree.compiler.compile_str(input_str, **kwargs)
