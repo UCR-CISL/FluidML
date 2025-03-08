@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple
 __dtype_map: Dict[str, np.dtype] = {
     "f32": np.float32,
     "f64": np.float64,
+    "i1": np.bool_,
     "i32": np.int32,
     "i64": np.int64,
     "u32": np.uint32,
