@@ -5,16 +5,15 @@ import iree.compiler.dialects.hal
 import iree.compiler.dialects.util
 import iree.runtime
 
-from collections import defaultdict
 from typing import Any, Dict, List, Tuple
 
+from .result import ProfileResult
 from .work import Master
 
 
 class Profiler(object):
     def __init__(
         self,
-        ctx: iree.compiler.ir.Context,
         times: int,
         worker_num: int,
         check_period: float,
@@ -23,40 +22,46 @@ class Profiler(object):
         **kwargs,
     ) -> "Profiler":
         super().__init__(*args, **kwargs)
-        self._ctx: iree.compiler.ir.Context = ctx
+        extra_args: str = compile_options.get("extra_args", [])
+        extra_args = [
+            arg for arg in extra_args if not arg.startswith("--compile-from=")
+        ] + ["--compile-from=flow"]
+        compile_options["extra_args"] = extra_args
         self._master: Master = Master(times, worker_num, check_period, compile_options)
 
-    def run(
-        self, mod: iree.compiler.ir.Module
-    ) -> Dict[str, Dict[Tuple[int, ...], float]]:
-        sub_mods: List[iree.compiler.ir.Module] = []
-        for operation in mod.body.operations:
-            if isinstance(operation.opview, iree.compiler.dialects.util.GlobalOp):
-                global_op: iree.compiler.dialects.util.GlobalOp = operation.opview
-            if isinstance(operation.opview, iree.compiler.dialects.flow.ExecutableOp):
-                sub_mod: iree.compiler.ir.Module = iree.compiler.ir.Module.create(
-                    mod.operation.location
-                )
-                for attr in mod.operation.attributes:
-                    sub_mod.operation.attributes[attr.name] = attr.attr
-                [sub_block] = sub_mod.body.region.blocks
-                iree.compiler.dialects.util.global_(
-                    global_op.sym_name,
-                    global_op.type_,
-                    sym_visibility=global_op.sym_visibility,
-                    is_mutable=global_op.is_mutable,
-                    initial_value=global_op.initial_value,
-                    inlining_policy=global_op.inlining_policy,
-                    loc=global_op.location,
-                    ip=iree.compiler.ir.InsertionPoint(sub_mod.body),
-                )
-                sub_block.append(operation)
-                sub_mods += [str(sub_mod)]
-        results: List[Tuple[str, Tuple[Tuple[int, ...]], float]] = self._master.run(
-            sub_mods
-        )
-        bench_map: Dict[str, Dict[Tuple[int, ...], float]] = defaultdict(dict)
-        for result in results:
-            kernel, axes, exec_time = result
-            bench_map[kernel][axes] = exec_time
-        return bench_map
+    def run(self, mod: str) -> Dict[str, Dict[Tuple[int, ...], float]]:
+        with iree.compiler.ir.Context():
+            mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(mod)
+            sub_mods: List[iree.compiler.ir.Module] = []
+            for operation in mod.body.operations:
+                if isinstance(operation.opview, iree.compiler.dialects.util.GlobalOp):
+                    global_op: iree.compiler.dialects.util.GlobalOp = operation.opview
+                if isinstance(
+                    operation.opview, iree.compiler.dialects.flow.ExecutableOp
+                ):
+                    sub_mod: iree.compiler.ir.Module = iree.compiler.ir.Module.create(
+                        mod.operation.location
+                    )
+                    for attr in mod.operation.attributes:
+                        sub_mod.operation.attributes[attr.name] = attr.attr
+                    [sub_block] = sub_mod.body.region.blocks
+                    iree.compiler.dialects.util.global_(
+                        global_op.sym_name,
+                        global_op.type_,
+                        sym_visibility=global_op.sym_visibility,
+                        is_mutable=global_op.is_mutable,
+                        initial_value=global_op.initial_value,
+                        inlining_policy=global_op.inlining_policy,
+                        loc=global_op.location,
+                        ip=iree.compiler.ir.InsertionPoint(sub_mod.body),
+                    )
+                    sub_block.append(operation)
+                    sub_mods += [str(sub_mod)]
+            table: List[Tuple[str, Tuple[Tuple[int, ...]], float]] = self._master.run(
+                sub_mods
+            )
+            result: ProfileResult = ProfileResult()
+            for element in table:
+                kernel, axes, exec_time = element
+                result[kernel, axes] = exec_time
+            return result

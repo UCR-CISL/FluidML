@@ -9,7 +9,7 @@ from typing import List, Union
 from .analyzer import Analyzer
 from .profiler import Profiler
 
-times: int = int(os.getenv("FLUIDML_TIME", 1))
+times: int = int(os.getenv("FLUIDML_TIME", 5))
 worker_num: int = int(os.getenv("FLUIDML_WORKER_NUM", os.cpu_count()))
 check_period: float = float(os.getenv("FLUIDML_CHECK_PERIOD", 5.0))
 
@@ -38,5 +38,6 @@ def run(flow: Union[str, bytes], entry: str, **kwargs):
         [func_op] = func_ops
         analyzer: Analyzer = Analyzer(ctx)
         analyzer.run(func_op)
-        profiler: Profiler = Profiler(ctx, times, worker_num, check_period, kwargs)
+        mod: str = str(mod)
+        profiler: Profiler = Profiler(times, worker_num, check_period, kwargs)
         profiler.run(mod)

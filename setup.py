@@ -11,6 +11,11 @@ setuptools.setup(
         "iree-base-runtime@git+https://github.com/UCR-CISL/iree-fluidml.git@fluidml-dev#subdirectory=runtime",
         "numpy",
     ],
+    entry_points={
+        "console_scripts": [
+            "fluidml-profiler = fluidml.profiler.__main__:main",
+        ]
+    },
     extras_require={
         "test": [
             "onnx",
