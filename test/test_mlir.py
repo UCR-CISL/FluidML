@@ -10,14 +10,42 @@ cur_path: str = os.path.dirname(__file__)
 mlir_path: str = os.path.join(cur_path, "mlir")
 
 
+def conv2d(input: np.ndarray, weight: np.ndarray) -> np.ndarray:
+    n, _, h, w = input.shape
+    f, _, kh, kw = weight.shape
+    y: np.ndarray = np.zeros((n, f, h - kh + 1, w - kw + 1))
+    for i in range(n):
+        for j in range(f):
+            for k in range(h - kh + 1):
+                for l in range(w - kw + 1):
+                    y[i, j, k, l] = np.sum(
+                        input[i, :, k : k + kh, l : l + kw] * weight[j]
+                    )
+    return y
+
+
+def fc(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    y: np.ndarray = np.matmul(a, b)
+    y_shift: np.ndarray = y - np.max(y, axis=-1, keepdims=True)
+    y_exp: np.ndarray = np.exp(y_shift)
+    y: np.ndarray = y_exp / np.sum(y_exp, axis=-1, keepdims=True)
+    return y
+
+
 @pytest.mark.parametrize(
     "file, entry, inputs, func",
     [
         (
-            "matmul.mlir",
-            "matmul",
+            "conv2d.mlir",
+            "conv2d",
+            (((1, 3, 224, 224), np.float32), ((3, 3, 3, 3), np.float32)),
+            conv2d,
+        ),
+        (
+            "fc.mlir",
+            "fc",
             (((256, 256), np.float32) for _ in range(2)),
-            np.matmul,
+            fc,
         ),
     ],
 )

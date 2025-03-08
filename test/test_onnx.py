@@ -12,17 +12,29 @@ import pytest
 import requests
 import tempfile
 
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Union
 
 
 @pytest.mark.parametrize(
     "name, url, entry, inputs",
     [
         (
+            "bert",
+            "https://github.com/onnx/models/raw/refs/heads/main/Natural_Language_Processing/bert_Opset18_transformers/bert_Opset18.onnx",
+            "main_graph",
+            (((1, 128), np.int64), ((1, 128), np.float32)),
+        ),
+        (
             "googlenet-12",
             "https://github.com/onnx/models/raw/refs/heads/main/validated/vision/classification/inception_and_googlenet/googlenet/model/googlenet-12.onnx",
             "bvlc_googlenet",
             (((1, 3, 224, 224), np.float32),),
+        ),
+        (
+            "gptneox",
+            "https://github.com/onnx/models/raw/refs/heads/main/Generative_AI/gptneox_Opset18_transformers/gptneox_Opset18.onnx",
+            "main_graph",
+            (((1, 128), np.int64), ((1, 128), np.float32)),
         ),
         (
             "mobilenetv2-12",
@@ -91,8 +103,19 @@ def test_onnx(
         onnx_path, providers=["CPUExecutionProvider"]
     )
 
-    iree_result: np.ndarray = f(*inputs).to_host()
-    (onnx_result,) = session.run(
+    iree_result: Union[
+        iree.runtime.DeviceArray, Tuple[iree.runtime.DeviceArray, ...]
+    ] = f(*inputs)
+    if isinstance(iree_result, tuple):
+        iree_result = map(lambda result: result.to_host(), iree_result)
+    else:
+        iree_result = tuple(iree_result.to_host())
+    onnx_result = session.run(
         None, dict(zip(map(lambda input: input.name, session.get_inputs()), inputs))
     )
-    assert np.allclose(iree_result, onnx_result, atol=1e-3, rtol=1e-3)
+    assert all(
+        map(
+            lambda result: np.allclose(result[0], result[1], atol=1e-3, rtol=1e-3),
+            zip(iree_result, onnx_result),
+        )
+    )
