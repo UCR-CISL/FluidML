@@ -74,6 +74,7 @@ class JobPool(object):
         self._create_queue: multiprocessing.Queue = self._mp_context.Queue()
         self._bench_queue: multiprocessing.Queue = self._mp_context.Queue()
         self._result_queue: multiprocessing.Queue = self._mp_context.Queue()
+        self._exception_queue: multiprocessing.Queue = self._mp_context.Queue()
         self._lock: multiprocessing.synchronize.RLock = self._mp_context.RLock()
         self._sem: multiprocessing.synchronize.Semaphore = self._mp_context.Semaphore(0)
         self._cond: multiprocessing.synchronize.Condition = self._mp_context.Condition(
@@ -141,10 +142,18 @@ class JobPool(object):
             if self.done:
                 self._cond.notify_all()
 
-    def wait(self) -> List[Tuple[str, Tuple[Tuple[int, ...]], float]]:
+    def throw(self, exception: Exception) -> None:
+        self._exception_queue.put(exception)
+
+    def wait(
+        self, check_period: float
+    ) -> List[Tuple[str, Tuple[Tuple[int, ...]], float]]:
         while not self.done:
             with self._cond:
-                self._cond.wait()
+                while not self._cond.wait(timeout=check_period):
+                    if not self._exception_queue.empty():
+                        execption: Exception = self._exception_queue.get()
+                        raise execption
                 results: List[Tuple[str, Tuple[Tuple[int, ...]], float]] = []
                 while not self._result_queue.empty():
                     job: ResultJob = self._result_queue.get()

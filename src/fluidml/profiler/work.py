@@ -26,6 +26,7 @@ class Master(object):
         self,
         times: int,
         worker_num: int,
+        check_period: float,
         compile_options: Dict[str, Any],
         *args,
         **kwargs,
@@ -35,6 +36,7 @@ class Master(object):
             multiprocessing.get_context("spawn")
         )
         self._job_pool: JobPool = JobPool(self._mp_context)
+        self._check_period: float = check_period
         self._workers: List[Worker] = [
             Worker(self._mp_context, self._job_pool, times, compile_options)
             for _ in range(worker_num)
@@ -45,7 +47,7 @@ class Master(object):
     ) -> List[Tuple[str, Tuple[Tuple[int, ...]], float]]:
         for sub_mod in sub_mods:
             self._job_pool.put(CreateSubModJob(sub_mod))
-        return self._job_pool.wait()
+        return self._job_pool.wait(self._check_period)
 
 
 class Worker(object):
@@ -76,20 +78,25 @@ class Worker(object):
 
     @staticmethod
     def run(job_pool: JobPool, times: int, compile_commands: Dict[str, Any]) -> None:
-        while True:
-            job: Job = job_pool.get()
-            if isinstance(job, CreateSubModJob):
-                for mod in Worker._work4create(job._mod):
-                    job_pool.put(BenchSubModJob(mod))
-                job_pool.free()
-            elif isinstance(job, BenchSubModJob):
-                kernel, axes, exec_time = Worker._work4bench(
-                    job.mod, times, compile_commands
-                )
-                job_pool.put(ResultJob(kernel, axes, exec_time))
-                job_pool.free()
-            else:
-                raise NotImplementedError(f"Unsupported job {job} of type {type(job)}.")
+        try:
+            while True:
+                job: Job = job_pool.get()
+                if isinstance(job, CreateSubModJob):
+                    for mod in Worker._work4create(job._mod):
+                        job_pool.put(BenchSubModJob(mod))
+                    job_pool.free()
+                elif isinstance(job, BenchSubModJob):
+                    kernel, axes, exec_time = Worker._work4bench(
+                        job.mod, times, compile_commands
+                    )
+                    job_pool.put(ResultJob(kernel, axes, exec_time))
+                    job_pool.free()
+                else:
+                    raise NotImplementedError(
+                        f"Unsupported job {job} of type {type(job)}."
+                    )
+        except Exception as e:
+            job_pool.throw(e)
 
     @staticmethod
     def _work4create(sub_mod: str) -> Generator[str, None, None]:

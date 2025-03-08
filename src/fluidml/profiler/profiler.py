@@ -17,13 +17,14 @@ class Profiler(object):
         ctx: iree.compiler.ir.Context,
         times: int,
         worker_num: int,
+        check_period: float,
         compile_options: Dict[str, Any],
         *args,
         **kwargs,
     ) -> "Profiler":
         super().__init__(*args, **kwargs)
         self._ctx: iree.compiler.ir.Context = ctx
-        self._master: Master = Master(times, worker_num, compile_options)
+        self._master: Master = Master(times, worker_num, check_period, compile_options)
 
     def run(
         self, mod: iree.compiler.ir.Module
