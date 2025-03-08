@@ -9,12 +9,28 @@ from .graph import Graph
 
 
 class Analyzer(object):
-    def __init__(self, ctx: iree.compiler.ir.Context, *args, **kwargs) -> "Analyzer":
+    def __init__(self, *args, **kwargs) -> "Analyzer":
         super().__init__(*args, **kwargs)
-        self._ctx: iree.compiler.ir.Context = ctx
 
-    def run(self, func_op: iree.compiler.dialects.util.FuncOp) -> None:
-        with self._ctx:
+    def run(self, mod: str, entry: str) -> None:
+        with iree.compiler.ir.Context():
+            mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(mod)
+            func_ops: List[iree.compiler.dialects.util.FuncOp] = list(
+                filter(
+                    lambda op: isinstance(op, iree.compiler.dialects.util.FuncOp)
+                    and op.sym_name.value == f"{entry}$async",
+                    mod.body.operations,
+                )
+            )
+            if not func_ops:
+                func_ops = list(
+                    filter(
+                        lambda op: isinstance(op, iree.compiler.dialects.util.FuncOp)
+                        and op.sym_name.value == entry,
+                        mod.body.operations,
+                    )
+                )
+            [func_op] = func_ops
             ops: List[iree.compiler.ir.OpView] = [
                 op
                 for region in func_op.regions
