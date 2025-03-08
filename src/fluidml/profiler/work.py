@@ -147,7 +147,9 @@ class Worker(object):
                 ] = iree.compiler.dialects.flow.dispatch(
                     export_types,
                     [],
-                    iree.compiler.ir.Attribute.parse(f"[@{mod_name}::@{kernel_name}]"),
+                    iree.compiler.ir.Attribute.parse(
+                        f'[@"{mod_name}"::@"{kernel_name}"]'
+                    ),
                     arguments,
                     [],
                     [],
@@ -170,11 +172,20 @@ class Worker(object):
                         )
                         rets += [ret]
                 iree.compiler.dialects.util.return_(rets)
-                # TODO(Jinjie Liu): to reduce the search space, we can fix the order of axes whose dim in exactly 1, because adjust such kind of axes will not lead to any difference in the pyhsical memory layout, but only increase the complexity of the search space
-                combinations: List[List[Tuple[int, ...]]] = [
-                    [elem for elem in permutations(list(range(len(shape))))]
-                    for shape, _ in input_types + result_types
-                ]
+                combinations: List[List[Tuple[int, ...]]] = []
+                for shape, _ in input_types + result_types:
+                    fixed_indices: List[int] = [
+                        idx for idx, dim in enumerate(shape) if dim == 1
+                    ]
+                    combination: List[Tuple[int, ...]] = list(
+                        filter(
+                            lambda elem: all(
+                                map(lambda idx: idx == elem[idx], fixed_indices)
+                            ),
+                            permutations(range(len(shape))),
+                        )
+                    )
+                    combinations += [combination]
                 for combination in product(*combinations):
                     for idx, axis in enumerate(combination):
                         kernel.attributes[
