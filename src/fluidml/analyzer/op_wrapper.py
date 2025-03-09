@@ -4,22 +4,32 @@ import iree.compiler.dialects.hal
 import iree.compiler.dialects.util
 import iree.compiler.ir
 
-from typing import List
+from typing import List, Union
 
 
 class OpWrapper(object):
     def __init__(self, op: iree.compiler.ir.OpView, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.op = op
+        self._op = op
 
     def __eq__(self, value: "OpWrapper") -> bool:
-        return self.op == value.op
+        assert isinstance(
+            value, OpWrapper
+        ), f"{value} is not an instance of `OpWrapper`."
+        return self._op == value._op
 
     def __hash__(self) -> int:
-        return self.op.__hash__() ^ object.__hash__(OpWrapper)
+        return self._op.__hash__() ^ object.__hash__(OpWrapper)
 
     @staticmethod
-    def from_op(op: iree.compiler.ir.OpView) -> "OpWrapper":
+    def from_op(
+        op: Union[iree.compiler.ir.Operation, iree.compiler.ir.OpView]
+    ) -> "OpWrapper":
+        if isinstance(op, iree.compiler.ir.Operation):
+            op: iree.compiler.ir.OpView = op.opview
+        assert isinstance(
+            op, iree.compiler.ir.OpView
+        ), f"Op {op} is not an instance of `iree.compiler.ir.OpView`."
         if (
             isinstance(op, iree.compiler.dialects.flow.TensorEmptyOp)
             or isinstance(op, iree.compiler.dialects.hal.TensorImportOp)
@@ -46,7 +56,7 @@ class OpWrapper(object):
     def inputs(self) -> List[iree.compiler.ir.Value]:
         return [
             op
-            for op in self.op.operands
+            for op in self._op.operands
             if isinstance(op.owner, iree.compiler.ir.Operation)
             and not isinstance(op.owner.opview, iree.compiler.dialects.arith.ConstantOp)
         ]
@@ -59,7 +69,7 @@ class OpWrapper(object):
     def outputs(self) -> List[iree.compiler.ir.Value]:
         return [
             op
-            for op in self.op.results
+            for op in self._op.results
             if isinstance(op.owner, iree.compiler.ir.Operation)
             and not isinstance(op.owner.opview, iree.compiler.dialects.arith.ConstantOp)
         ]

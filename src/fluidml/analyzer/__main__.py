@@ -17,6 +17,12 @@ def main():
         help="path to the IREE flow module file",
     )
     parser.add_argument(
+        "--entry",
+        default="main",
+        type=str,
+        help="entry function name",
+    )
+    parser.add_argument(
         "--kstat",
         type=str,
         required=True,
@@ -30,6 +36,7 @@ def main():
     )
     args: argparse.Namespace = parser.parse_args()
     filename: str = args.filename
+    entry: str = args.entry
     with open(filename, "r") as f:
         mod: str = f.read()
     kstatf: str = args.kstat
@@ -37,6 +44,7 @@ def main():
         kstat: KStat = KStat.build(f)
     output: Optional[str] = args.output
     analyzer: Analyzer = Analyzer()
+    analyzer.run(mod, entry, kstat)
 
 
 if __name__ == "__main__":

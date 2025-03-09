@@ -50,5 +50,6 @@ class Analyzer(object):
                 )
             ]
             graph: Graph = Graph(ops)
-            graph.partitioned()
+            for subgraph in graph.partitioned():
+                pass
             # TODO(Jinjie Liu): Do something more here.
