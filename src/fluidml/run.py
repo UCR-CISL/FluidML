@@ -6,6 +6,7 @@ import os
 
 from typing import List, Union
 
+from .utils.kstat import KStat
 from .analyzer import Analyzer
 from .profiler import Profiler
 
@@ -21,7 +22,7 @@ def run(flow: Union[str, bytes], entry: str, **kwargs):
         mod: str = flow
     else:
         raise TypeError(f"Unsupported type {type(flow)} for fulidml.run")
-    analyzer: Analyzer = Analyzer()
-    analyzer.run(mod, entry)
     profiler: Profiler = Profiler(times, worker_num, check_period, kwargs)
-    profiler.run(mod)
+    kstat: KStat = profiler.run(mod)
+    analyzer: Analyzer = Analyzer()
+    analyzer.run(mod, entry, kstat)

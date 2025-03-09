@@ -7,7 +7,7 @@ import iree.runtime
 
 from typing import Any, Dict, List, Tuple
 
-from .result import ProfileResult
+from ..utils.kstat import KStat
 from .work import Master
 
 
@@ -29,7 +29,7 @@ class Profiler(object):
         compile_options["extra_args"] = extra_args
         self._master: Master = Master(times, worker_num, check_period, compile_options)
 
-    def run(self, mod: str) -> Dict[str, Dict[Tuple[int, ...], float]]:
+    def run(self, mod: str) -> KStat:
         with iree.compiler.ir.Context():
             mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(mod)
             sub_mods: List[iree.compiler.ir.Module] = []
@@ -60,8 +60,8 @@ class Profiler(object):
             table: List[Tuple[str, Tuple[Tuple[int, ...]], float]] = self._master.run(
                 sub_mods
             )
-            result: ProfileResult = ProfileResult()
+            kstat: KStat = KStat()
             for element in table:
                 kernel, axes, exec_time = element
-                result[kernel, axes] = exec_time
-            return result
+                kstat[kernel, axes] = exec_time
+            return kstat

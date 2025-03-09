@@ -5,6 +5,7 @@ import iree.compiler.ir
 
 from typing import List
 
+from ..utils.kstat import KStat
 from .graph import Graph
 
 
@@ -12,7 +13,7 @@ class Analyzer(object):
     def __init__(self, *args, **kwargs) -> "Analyzer":
         super().__init__(*args, **kwargs)
 
-    def run(self, mod: str, entry: str) -> None:
+    def run(self, mod: str, entry: str, kstat: KStat) -> None:
         with iree.compiler.ir.Context():
             mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(mod)
             func_ops: List[iree.compiler.dialects.util.FuncOp] = list(

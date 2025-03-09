@@ -2,6 +2,7 @@ import argparse
 
 from typing import Optional
 
+from ..utils.kstat import KStat
 from .analyzer import Analyzer
 
 
@@ -16,10 +17,10 @@ def main():
         help="path to the IREE flow module file",
     )
     parser.add_argument(
-        "--json",
+        "--kstat",
         type=str,
         required=True,
-        help="path to the JSON file containing profiling data",
+        help="path to the JSON file containing kstat data",
     )
     parser.add_argument(
         "--output",
@@ -31,7 +32,9 @@ def main():
     filename: str = args.filename
     with open(filename, "r") as f:
         mod: str = f.read()
-    json_file: str = args.json
+    kstatf: str = args.kstat
+    with open(kstatf, "r") as f:
+        kstat: KStat = KStat.build(f)
     output: Optional[str] = args.output
     analyzer: Analyzer = Analyzer()
 

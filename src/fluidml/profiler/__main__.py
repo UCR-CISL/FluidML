@@ -4,8 +4,8 @@ import sys
 
 from typing import Any, Dict, Optional
 
+from ..utils.kstat import KStat
 from .profiler import Profiler
-from .result import ProfileResult
 
 
 def main():
@@ -58,7 +58,7 @@ def main():
     compile_options: Dict[str, Any] = eval(args.compile_options)
     output: Optional[str] = args.output
     profiler: Profiler = Profiler(times, worker_num, check_period, compile_options)
-    result: ProfileResult = profiler.run(mod)
+    result: KStat = profiler.run(mod)
     if output:
         with open(output, "w") as f:
             result.dump(f)
