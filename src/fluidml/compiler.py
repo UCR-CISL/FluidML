@@ -23,12 +23,12 @@ COMPILATION_STAGES: List = [
 ]
 
 
-def compile_file(input_file: str, entry: str, **kwargs) -> bytes:
+def compile_file(input_file: str, **kwargs) -> bytes:
     with open(input_file, "r") as f:
-        return compile_str(f.read(), entry, **kwargs)
+        return compile_str(f.read(), **kwargs)
 
 
-def compile_str(input_str: Union[str, bytes], entry: str, **kwargs) -> bytes:
+def compile_str(input_str: Union[str, bytes], **kwargs) -> bytes:
     extra_args: List[str] = kwargs.get("extra_args", [])
     compile_from_flags: List[str] = list(
         filter(lambda flag: flag.startswith("--compile-from="), extra_args)
@@ -59,7 +59,7 @@ def compile_str(input_str: Union[str, bytes], entry: str, **kwargs) -> bytes:
             **kwargs,
         }
         flow: bytes = iree.compiler.compile_str(input_str, **start_to_flow_kwargs)
-        run(flow, entry, **flow_to_end_kwargs)
+        run(flow, **flow_to_end_kwargs)
         return iree.compiler.compile_str(flow, **flow_to_end_kwargs)
     else:
         return iree.compiler.compile_str(input_str, **kwargs)

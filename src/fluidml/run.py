@@ -15,7 +15,7 @@ worker_num: int = int(os.getenv("FLUIDML_WORKER_NUM", os.cpu_count()))
 check_period: float = float(os.getenv("FLUIDML_CHECK_PERIOD", 5.0))
 
 
-def run(flow: Union[str, bytes], entry: str, **kwargs):
+def run(flow: Union[str, bytes], **kwargs):
     if isinstance(flow, bytes):
         mod: str = flow.decode()
     elif isinstance(flow, str):
@@ -25,4 +25,4 @@ def run(flow: Union[str, bytes], entry: str, **kwargs):
     profiler: Profiler = Profiler(times, worker_num, check_period, kwargs)
     kstat: KStat = profiler.run(mod)
     analyzer: Analyzer = Analyzer()
-    analyzer.run(mod, entry, kstat)
+    analyzer.run(mod, kstat)

@@ -57,7 +57,7 @@ def test_mlir(
 ) -> None:
     path: str = os.path.join(mlir_path, file)
     compiled_flatbuffer: bytes = fluidml.compiler.compile_file(
-        path, entry, target_backends=["llvm-cpu"]
+        path, target_backends=["llvm-cpu"]
     )
     config: iree.runtime.Config = iree.runtime.Config("local-task")
     ctx: iree.runtime.SystemContext = iree.runtime.SystemContext(config=config)

@@ -87,7 +87,7 @@ def test_onnx(
         parsed_args: argparse.Namespace = m.parse_arguments(onnx_args)
         m.main(parsed_args)
     compiled_flatbuffer: bytes = fluidml.compiler.compile_file(
-        mlir_path, entry, target_backends=["llvm-cpu"]
+        mlir_path, target_backends=["llvm-cpu"]
     )
     config: iree.runtime.Config = iree.runtime.Config("local-task")
     ctx: iree.runtime.SystemContext = iree.runtime.SystemContext(config=config)

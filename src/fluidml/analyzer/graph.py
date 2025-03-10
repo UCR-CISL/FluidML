@@ -1,77 +1,91 @@
 import iree.compiler.ir
 
-from functools import cached_property
-from typing import List, Set, Union
+from typing import List, Set, Type, TypeVar, Union
 
-from .op_wrapper import OpWrapper
+from .op_wrapper import (
+    DestinationOpWrapper,
+    InputOpWrapper,
+    OpWrapper,
+    OutputOpWrapper,
+    SourceOpWrapper,
+)
+
+OpWrapperSubclassType = TypeVar("OpWrapperSubclassType", bound=OpWrapper)
 
 
 class Graph(object):
-    def __init__(
-        self, ops: List[Union[OpWrapper, iree.compiler.ir.OpView]], *args, **kwargs
-    ) -> "Graph":
+    def __init__(self, wrappers: List[OpWrapper], *args, **kwargs) -> "Graph":
         super().__init__(*args, **kwargs)
-        self._wrappers: List[OpWrapper] = []
-        for op in ops:
-            if isinstance(op, OpWrapper):
-                self._wrappers += [op]
-            elif isinstance(op, iree.compiler.ir.OpView):
-                self._wrappers += [OpWrapper.from_op(op)]
-            else:
-                raise NotImplementedError(
-                    f"The type of op {op} is not supported as a member of `Graph` yet, which is {type(op)}."
-                )
+        self._wrappers: List[OpWrapper] = wrappers
 
     def __contains__(
         self, op: Union[OpWrapper, iree.compiler.ir.Operation, iree.compiler.ir.OpView]
     ) -> bool:
-        if isinstance(op, iree.compiler.ir.Operation) or isinstance(
-            op, iree.compiler.ir.OpView
-        ):
-            op: OpWrapper = OpWrapper.from_op(op)
-        return op in self._wrappers
+        if isinstance(op, iree.compiler.ir.Operation):
+            return any(map(lambda wrapper: wrapper._op == op.opview, self._wrappers))
+        elif isinstance(op, iree.compiler.ir.OpView):
+            return any(map(lambda wrapper: wrapper._op == op, self._wrappers))
+        elif isinstance(op, OpWrapper):
+            return op in self._wrappers
+        else:
+            raise TypeError(f"Unsupported type {type(op)} for Graph.__contains__")
 
     def __repr__(self) -> str:
         return "\n".join(map(lambda wrapper: wrapper._op.get_asm(), self._wrappers))
 
-    def get_inputs(
-        self, op: Union[OpWrapper, iree.compiler.ir.OpView]
-    ) -> List[iree.compiler.ir.Value]:
-        if isinstance(op, iree.compiler.ir.OpView):
-            op: OpWrapper = OpWrapper.from_op(op)
-        assert op in self._wrappers, f"Op {op} is not in the graph."
-        return op.inputs
+    def get(
+        self,
+        op: Union[iree.compiler.ir.Operation, iree.compiler.ir.OpView],
+        cls: Type[OpWrapperSubclassType] = OpWrapper,
+    ) -> OpWrapper:
+        assert issubclass(cls, OpWrapper), f"{cls} is not a subclass of `OpWrapper`."
+        if isinstance(op, iree.compiler.ir.Operation):
+            [wrapper] = list(
+                filter(
+                    lambda wrapper: wrapper._op == op.opview
+                    and isinstance(wrapper, cls),
+                    self._wrappers,
+                )
+            )
+        elif isinstance(op, iree.compiler.ir.OpView):
+            [wrapper] = list(
+                filter(
+                    lambda wrapper: wrapper._op == op and isinstance(wrapper, cls),
+                    self._wrappers,
+                )
+            )
+        elif isinstance(op, OpWrapper):
+            [wrapper] = list(
+                filter(
+                    lambda wrapper: wrapper == op and isinstance(wrapper, cls),
+                    self._wrappers,
+                )
+            )
+        else:
+            raise TypeError(f"Unsupported type {type(op)} for Graph.get")
+        return wrapper
 
-    def get_outputs(
-        self, op: Union[OpWrapper, iree.compiler.ir.OpView]
-    ) -> List[iree.compiler.ir.Value]:
-        if isinstance(op, iree.compiler.ir.OpView):
-            op: OpWrapper = OpWrapper.from_op(op)
-        assert op in self._wrappers, f"Op {op} is not in the graph."
-        return op.outputs
-
-    def get_prevs(
-        self, op: Union[OpWrapper, iree.compiler.ir.OpView]
-    ) -> List[iree.compiler.ir.OpView]:
+    def get_inputs(self, op: OpWrapper) -> List[OpWrapper]:
+        assert op in self, f"Op {op._op} is not in the graph."
         return [
-            input.owner.opview for input in self.get_inputs(op) if input.owner in self
+            self.get(input.owner.opview, OutputOpWrapper)
+            for input in op.inputs
+            if input.owner in self
         ]
 
-    def get_nexts(
-        self, op: Union[OpWrapper, iree.compiler.ir.OpView]
-    ) -> List[iree.compiler.ir.OpView]:
+    def get_outputs(self, op: OpWrapper) -> List[OpWrapper]:
+        assert op in self, f"Op {op._op} is not in the graph."
         return [
-            use.owner
-            for output in self.get_outputs(op)
+            self.get(use.owner, InputOpWrapper)
+            for output in op.outputs
             for use in output.uses
             if use.owner in self
         ]
 
-    def get_neighbors(
-        self, op: Union[OpWrapper, iree.compiler.ir.OpView]
-    ) -> List[iree.compiler.ir.OpView]:
-        return self.get_prevs(op) + self.get_nexts(op)
+    def get_neighbors(self, op: OpWrapper) -> List[OpWrapper]:
+        return self.get_inputs(op) + self.get_outputs(op)
 
+    @property
     def is_connected(self) -> bool:
         graphs: List[Graph] = self._partitioned()
         return len(graphs) == 1
@@ -79,11 +93,11 @@ class Graph(object):
     def partitioned(self) -> List["Graph"]:
         graphs: List[Graph] = self._partitioned()
         for graph in graphs:
-            assert graph.is_connected(), f"Graph\n{graph}\nis not connected."
+            assert graph.is_connected, f"Graph\n{graph}\nis not connected."
         return graphs
 
     def _partitioned(self) -> List["Graph"]:
-        wrappers: Set[OpWrapper] = set(self._wrappers)
+        wrappers: Set[OpWrapper] = self._wrappers_set
         visited: Set[OpWrapper] = set()
         graphs: List[Graph] = []
         while wrappers:
@@ -97,22 +111,21 @@ class Graph(object):
                 wrappers -= {wrapper}
                 visited |= {wrapper}
                 ops += [wrapper]
-                for op_view in self.get_neighbors(wrapper):
-                    op_wrapper: OpWrapper = OpWrapper.from_op(op_view)
+                for op_wrapper in self.get_neighbors(wrapper):
                     queue += [op_wrapper]
             assert ops, "Ops cannot be empty."
             graph: Graph = Graph(ops)
             graphs += [graph]
         return graphs
 
-    @cached_property
+    @property
     def _wrappers_set(self) -> Set[OpWrapper]:
         return set(self._wrappers)
 
-    @cached_property
+    @property
     def tensors(self) -> Set[iree.compiler.ir.Value]:
         return set(tensor for wrapper in self._wrappers for tensor in wrapper.tensors)
 
-    @cached_property
+    @property
     def tensor_names(self) -> Set[str]:
         return set(name for wrapper in self._wrappers for name in wrapper.tensor_names)
