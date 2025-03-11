@@ -7,7 +7,7 @@ from typing import List
 
 from ..utils.kstat import KStat
 from .graph import Graph
-from .op_wrapper import (
+from .wrapper import (
     DestinationOpWrapper,
     IntermediateOpWrapper,
     OpWrapper,

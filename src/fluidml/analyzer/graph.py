@@ -1,8 +1,8 @@
 import iree.compiler.ir
 
-from typing import Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import Dict, List, Optional, Set, Tuple, Type, TypeVar, TYPE_CHECKING, Union
 
-from .op_wrapper import (
+from .wrapper import (
     DestinationOpWrapper,
     InputOpWrapper,
     OpWrapper,
@@ -18,6 +18,8 @@ class Graph(object):
     def __init__(self, wrappers: List[OpWrapper], *args, **kwargs) -> "Graph":
         super().__init__(*args, **kwargs)
         self._wrappers: List[OpWrapper] = wrappers
+        for wrapper in self._wrappers:
+            wrapper._scope = self
         if len(wrappers) == 1:
             [wrapper] = wrappers
             assert isinstance(
@@ -107,9 +109,6 @@ class Graph(object):
             if self.contains(use.owner, InputOpWrapper)
         ]
 
-    def get_neighbors(self, op: OpWrapper) -> List[OpWrapper]:
-        return self.get_inputs(op) + self.get_outputs(op)
-
     @property
     def is_connected(self) -> bool:
         graphs: List[Graph] = self._partitioned()
@@ -136,7 +135,7 @@ class Graph(object):
                 wrappers -= {wrapper}
                 visited |= {wrapper}
                 ops += [wrapper]
-                queue += self.get_neighbors(wrapper)
+                queue += wrapper.scope_neighbors
             assert ops, "Ops cannot be empty."
             graph: Graph = Graph(ops)
             graphs += [graph]
@@ -203,8 +202,10 @@ class Graph(object):
 
     @property
     def tensors(self) -> Set[iree.compiler.ir.Value]:
-        return set(tensor for wrapper in self._wrappers for tensor in wrapper.tensors)
+        return set(tensor for wrapper in self._wrappers for tensor in wrapper.neighbors)
 
     @property
     def tensor_names(self) -> Set[str]:
-        return set(name for wrapper in self._wrappers for name in wrapper.tensor_names)
+        return set(
+            name for wrapper in self._wrappers for name in wrapper.neighbor_names
+        )
