@@ -112,3 +112,13 @@ class IntermediateOpWrapper(InputOpWrapper, OutputOpWrapper):
         **kwargs,
     ):
         super().__init__(op=op, *args, **kwargs)
+
+
+class InterfaceOpWrapper(SourceOpWrapper, DestinationOpWrapper):
+    def __init__(
+        self,
+        op: iree.compiler.ir.OpView,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(op=op, *args, **kwargs)

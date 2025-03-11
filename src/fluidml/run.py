@@ -1,10 +1,6 @@
-import iree.compiler.dialects.flow
-import iree.compiler.dialects.hal
-import iree.compiler.dialects.util
-import iree.compiler.ir
 import os
 
-from typing import List, Union
+from typing import Union
 
 from .utils.kstat import KStat
 from .analyzer import Analyzer

@@ -57,12 +57,13 @@ class Analyzer(object):
                             or isinstance(
                                 op, iree.compiler.dialects.hal.TensorBarrierOp
                             )
+                            or isinstance(
+                                op, iree.compiler.dialects.flow.TensorUpdateOp
+                            )
                         ):
                             wrappers += [IntermediateOpWrapper(op)]
-                        elif isinstance(op, iree.compiler.dialects.flow.TensorUpdateOp):
-                            # Update Operation is a special case. It should be treated as a SourceOp in some graphs, and a DestinationOp in others.
-                            wrappers += [SourceOpWrapper(op), DestinationOpWrapper(op)]
             graph: Graph = Graph(wrappers)
             for subgraph in graph.partitioned():
-                pass
+                for seq in subgraph.pathify():
+                    pass
             # TODO(Jinjie Liu): Do something more here.
