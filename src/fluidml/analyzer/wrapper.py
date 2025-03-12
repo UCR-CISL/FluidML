@@ -43,6 +43,9 @@ class OpWrapper(object):
     def __hash__(self) -> int:
         return hash(self._op) ^ object.__hash__(OpWrapper)
 
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}({self._op})"
+
     @cached_property
     def inputs(self) -> List[iree.compiler.ir.Value]:
         return [

@@ -1,22 +1,22 @@
 import iree.compiler.ir
 
-from typing import Dict, Iterator, List, Optional, Sequence, Set, Tuple, Union
+from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 from ..wrapper import OpWrapper
 from .scope import Scope
+from .sequence import Sequence
 
 
 class Graph(Scope):
-    def __init__(self, wrappers: Sequence[OpWrapper] = [], *args, **kwargs) -> "Graph":
+    def __init__(self, wrappers: Iterator[OpWrapper] = [], *args, **kwargs) -> "Graph":
         super().__init__(*args, **kwargs)
         self._wrappers: Set[OpWrapper] = {
             OpWrapper(wrapper._op, self) for wrapper in wrappers
         }
 
-    def __repr__(self) -> str:
-        return "\n".join(map(lambda wrapper: wrapper._op.get_asm(), self._wrappers))
-    
-    def contains(self, op: Union[OpWrapper, iree.compiler.ir.Operation, iree.compiler.ir.OpView]) -> bool:
+    def contains(
+        self, op: Union[OpWrapper, iree.compiler.ir.Operation, iree.compiler.ir.OpView]
+    ) -> bool:
         if isinstance(op, OpWrapper):
             return op in self._wrappers
         else:
@@ -32,7 +32,7 @@ class Graph(Scope):
             assert graph.is_connected, f"Graph\n{graph}\nis not connected."
         return graphs
 
-    def pathify(self) -> List[OpWrapper]:
+    def pathify(self) -> List[Sequence]:
         assert self.is_connected, f"Graph\n{self}\nis not connected."
         dtable: Dict[OpWrapper, Tuple[Optional[OpWrapper], int]] = {}
         queue: List[OpWrapper] = [
@@ -54,11 +54,11 @@ class Graph(Scope):
                 if output not in dtable:
                     queue += [output]
         destination, (prev, dist) = max(dtable.items(), key=lambda x: x[1][1])
-        seq: List[OpWrapper] = [destination]
+        seq: Sequence = Sequence([destination])
         while prev:
-            seq = [prev] + seq
+            seq = seq.prepend(prev)
             prev, _ = dtable[prev]
-        seq_set: Set[OpWrapper] = set(seq)
+        seq_set: Set[OpWrapper] = set(wrapper for wrapper in seq)
         remains_set: Set[OpWrapper] = {
             wrapper for wrapper in self._wrappers if wrapper not in seq_set
         }
@@ -79,7 +79,7 @@ class Graph(Scope):
             else:
                 graph += remain
         subgraphs: List[Graph] = graph.partitioned()
-        seqs: List[List[OpWrapper]] = [seq]
+        seqs: List[Sequence] = [seq]
         for subgraph in subgraphs:
             seqs += subgraph.pathify()
         return seqs

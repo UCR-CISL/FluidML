@@ -21,6 +21,17 @@ class Scope(object):
     def __iter__(self) -> Iterator[OpWrapper]:
         return self.iter()
 
+    def __str__(self) -> str:
+        return "{}(\n{}\n)".format(
+            self.__class__.__name__,
+            "\n".join(
+                map(
+                    lambda wrapper: f"  {wrapper}",
+                    self,
+                )
+            ),
+        )
+
     def contains(
         self,
         op: Union[OpWrapper, iree.compiler.ir.Operation, iree.compiler.ir.OpView],
