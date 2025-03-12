@@ -6,6 +6,7 @@ import iree.compiler.dialects.hal
 import iree.compiler.dialects.util
 import iree.compiler.ir
 
+from functools import cached_property
 from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
@@ -33,54 +34,7 @@ class OpWrapper(object):
     def __hash__(self) -> int:
         return hash(self._op) ^ object.__hash__(OpWrapper)
 
-    @property
-    def inputs(self) -> List[iree.compiler.ir.Value]:
-        return []
-
-    @property
-    def scope_inputs(self) -> List[iree.compiler.ir.Value]:
-        return self._scope.get_inputs(self)
-
-    @property
-    def input_names(self) -> List[str]:
-        return [input.get_name() for input in self.inputs]
-
-    @property
-    def outputs(self) -> List[iree.compiler.ir.Value]:
-        return []
-
-    @property
-    def scope_outputs(self) -> List[iree.compiler.ir.Value]:
-        return self._scope.get_outputs(self)
-
-    @property
-    def output_names(self) -> List[str]:
-        return [output.get_name() for output in self.outputs]
-
-    @property
-    def neighbors(self) -> List[iree.compiler.ir.Value]:
-        return self.inputs + self.outputs
-
-    @property
-    def scope_neighbors(self) -> List[iree.compiler.ir.Value]:
-        return self.scope_inputs + self.scope_outputs
-
-    @property
-    def neighbor_names(self) -> List[str]:
-        return self.input_names + self.output_names
-
-
-class InputOpWrapper(OpWrapper):
-    def __init__(
-        self,
-        op: iree.compiler.ir.OpView,
-        scope: Graph = None,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(op=op, scope=scope, *args, **kwargs)
-
-    @property
+    @cached_property
     def inputs(self) -> List[iree.compiler.ir.Value]:
         return [
             op
@@ -89,18 +43,18 @@ class InputOpWrapper(OpWrapper):
             and not isinstance(op.owner.opview, iree.compiler.dialects.arith.ConstantOp)
         ]
 
+    @cached_property
+    def scope_inputs(self) -> List[iree.compiler.ir.Value]:
+        if self._scope:
+            return self._scope.get_inputs(self)
+        else:
+            return []
 
-class OutputOpWrapper(OpWrapper):
-    def __init__(
-        self,
-        op: iree.compiler.ir.OpView,
-        scope: Graph = None,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(op=op, scope=scope, *args, **kwargs)
+    @cached_property
+    def input_names(self) -> List[str]:
+        return [input.get_name() for input in self.inputs]
 
-    @property
+    @cached_property
     def outputs(self) -> List[iree.compiler.ir.Value]:
         return [
             op
@@ -109,46 +63,37 @@ class OutputOpWrapper(OpWrapper):
             and not isinstance(op.owner.opview, iree.compiler.dialects.arith.ConstantOp)
         ]
 
+    @cached_property
+    def scope_outputs(self) -> List[iree.compiler.ir.Value]:
+        if self._scope:
+            return self._scope.get_outputs(self)
+        else:
+            return []
 
-class SourceOpWrapper(OutputOpWrapper):
-    def __init__(
-        self,
-        op: iree.compiler.ir.OpView,
-        scope: Graph = None,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(op=op, scope=scope, *args, **kwargs)
+    @cached_property
+    def output_names(self) -> List[str]:
+        return [output.get_name() for output in self.outputs]
 
+    @cached_property
+    def neighbors(self) -> List[iree.compiler.ir.Value]:
+        return self.inputs + self.outputs
 
-class DestinationOpWrapper(InputOpWrapper):
-    def __init__(
-        self,
-        op: iree.compiler.ir.OpView,
-        scope: Graph = None,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(op=op, scope=scope, *args, **kwargs)
+    @cached_property
+    def scope_neighbors(self) -> List[iree.compiler.ir.Value]:
+        return self.scope_inputs + self.scope_outputs
 
+    @cached_property
+    def neighbor_names(self) -> List[str]:
+        return self.input_names + self.output_names
 
-class IntermediateOpWrapper(InputOpWrapper, OutputOpWrapper):
-    def __init__(
-        self,
-        op: iree.compiler.ir.OpView,
-        scope: Graph = None,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(op=op, scope=scope, *args, **kwargs)
+    @cached_property
+    def is_source(self) -> bool:
+        return not self.scope_inputs
 
+    @cached_property
+    def is_destination(self) -> bool:
+        return not self.scope_outputs
 
-class InterfaceOpWrapper(SourceOpWrapper, DestinationOpWrapper):
-    def __init__(
-        self,
-        op: iree.compiler.ir.OpView,
-        scope: Graph = None,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(op=op, scope=scope, *args, **kwargs)
+    @cached_property
+    def is_intermediate(self) -> bool:
+        return self.scope_inputs and self.scope_outputs

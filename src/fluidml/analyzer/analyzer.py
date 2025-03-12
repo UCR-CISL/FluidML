@@ -1,5 +1,3 @@
-import iree.compiler.dialects.flow
-import iree.compiler.dialects.hal
 import iree.compiler.dialects.util
 import iree.compiler.ir
 
@@ -7,12 +5,7 @@ from typing import List
 
 from ..utils.kstat import KStat
 from .graph import Graph
-from .wrapper import (
-    DestinationOpWrapper,
-    IntermediateOpWrapper,
-    OpWrapper,
-    SourceOpWrapper,
-)
+from .wrapper import OpWrapper
 
 
 class Analyzer(object):
@@ -36,32 +29,12 @@ class Analyzer(object):
                 )
             else:
                 raise NotImplementedError(f"Unsupported number of FuncOps: {func_ops}")
-            wrappers: List[OpWrapper] = []
-            for region in func_op.regions:
-                for block in region.blocks:
-                    for op in block.operations:
-                        if (
-                            isinstance(op, iree.compiler.dialects.flow.TensorEmptyOp)
-                            or isinstance(op, iree.compiler.dialects.hal.TensorImportOp)
-                            or isinstance(op, iree.compiler.dialects.flow.TensorSplatOp)
-                            or isinstance(op, iree.compiler.dialects.util.GlobalLoadOp)
-                        ):
-                            wrappers += [SourceOpWrapper(op)]
-                        elif isinstance(op, iree.compiler.dialects.hal.TensorExportOp):
-                            wrappers += [DestinationOpWrapper(op)]
-                        elif (
-                            isinstance(op, iree.compiler.dialects.flow.DispatchOp)
-                            or isinstance(
-                                op, iree.compiler.dialects.flow.TensorReshapeOp
-                            )
-                            or isinstance(
-                                op, iree.compiler.dialects.hal.TensorBarrierOp
-                            )
-                            or isinstance(
-                                op, iree.compiler.dialects.flow.TensorUpdateOp
-                            )
-                        ):
-                            wrappers += [IntermediateOpWrapper(op)]
+            wrappers: List[OpWrapper] = [
+                OpWrapper(op)
+                for region in func_op.regions
+                for block in region.blocks
+                for op in block.operations
+            ]
             graph: Graph = Graph(wrappers)
             for subgraph in graph.partitioned():
                 for seq in subgraph.pathify():
