@@ -4,7 +4,7 @@ import iree.compiler.ir
 from typing import List
 
 from ..utils.kstat import KStat
-from .graph import Graph
+from .scope import Graph
 from .wrapper import OpWrapper
 
 

@@ -7,29 +7,38 @@ import iree.compiler.dialects.util
 import iree.compiler.ir
 
 from functools import cached_property
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Union
 
 if TYPE_CHECKING:
-    from .graph import Graph
+    from .scope import Scope
 
 
 class OpWrapper(object):
     def __init__(
         self,
         op: iree.compiler.ir.OpView,
-        scope: Optional[Graph] = None,
+        scope: Optional[Scope] = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self._scope: Optional[Graph] = scope
+        self._scope: Optional[Scope] = scope
         self._op: iree.compiler.ir.OpView = op
 
-    def __eq__(self, value: "OpWrapper") -> bool:
-        assert isinstance(
-            value, OpWrapper
-        ), f"{value} is not an instance of `OpWrapper`."
-        return self._op == value._op and type(self) == type(value)
+    def __eq__(
+        self,
+        value: Union[iree.compiler.ir.Operation, iree.compiler.ir.OpView, "OpWrapper"],
+    ) -> bool:
+        if isinstance(value, iree.compiler.ir.Operation):
+            return self._op == value.opview
+        elif isinstance(value, iree.compiler.ir.OpView):
+            return self._op == value
+        elif isinstance(value, OpWrapper):
+            return self._op == value._op
+        else:
+            raise TypeError(
+                f"Unsupported type {type(value)} for {self.__class__.__name__}.__eq__."
+            )
 
     def __hash__(self) -> int:
         return hash(self._op) ^ object.__hash__(OpWrapper)
