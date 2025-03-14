@@ -14,6 +14,7 @@ setuptools.setup(
     entry_points={
         "console_scripts": [
             "fluidml-analyzer = fluidml.analyzer.__main__:main",
+            "fluidml-generator = fluidml.generator.__main__:main",
             "fluidml-profiler = fluidml.profiler.__main__:main",
         ]
     },

@@ -11,6 +11,12 @@ class Schedule(object):
         super().__init__(*args, **kwargs)
         self._schedule: Dict[str, Tuple[int, ...]] = schedule
 
+    def __contains__(self, key: str) -> bool:
+        return key in self._schedule
+
+    def __getitem__(self, key: str) -> Tuple[int, ...]:
+        return self._schedule[key]
+
     def __str__(self) -> str:
         return f"Schedule(\n{self._schedule}\n)"
 
