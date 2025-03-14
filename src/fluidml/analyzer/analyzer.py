@@ -4,7 +4,7 @@ import iree.compiler.ir
 from typing import List
 
 from ..utils.kstat import KStat
-from .schedule import Schedule, ScheduleGroup
+from ..utils.schedule import Schedule, ScheduleGroup
 from .scope import Graph
 from .wrapper import OpWrapper
 
@@ -13,7 +13,7 @@ class Analyzer(object):
     def __init__(self, *args, **kwargs) -> "Analyzer":
         super().__init__(*args, **kwargs)
 
-    def run(self, mod: str, kstat: KStat) -> None:
+    def run(self, mod: str, kstat: KStat) -> Schedule:
         with iree.compiler.ir.Context():
             mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(mod)
             func_ops: List[iree.compiler.dialects.util.FuncOp] = list(
@@ -42,4 +42,4 @@ class Analyzer(object):
                 for seq in subgraph.pathify():
                     group |= seq.schedule(kstat)
             schedule: Schedule = group.merge()
-            # TODO(Jinjie Liu): Do something more here.
+            return schedule

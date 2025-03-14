@@ -3,6 +3,7 @@ import argparse
 from typing import Optional
 
 from ..utils.kstat import KStat
+from ..utils.schedule import Schedule
 from .analyzer import Analyzer
 
 
@@ -24,8 +25,8 @@ def main():
     )
     parser.add_argument(
         "--output",
-        default=None,
         type=str,
+        required=False,
         help="output file for analysis results",
     )
     args: argparse.Namespace = parser.parse_args()
@@ -37,7 +38,9 @@ def main():
         kstat: KStat = KStat.build(f)
     output: Optional[str] = args.output
     analyzer: Analyzer = Analyzer()
-    analyzer.run(mod, kstat)
+    schedule: Schedule = analyzer.run(mod, kstat)
+    with open(output, "wb") as f:
+        schedule.dump(f)
 
 
 if __name__ == "__main__":

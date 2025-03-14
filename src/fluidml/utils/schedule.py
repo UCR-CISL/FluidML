@@ -1,5 +1,7 @@
+import pickle
+
 from collections import Counter, defaultdict
-from typing import Dict, Iterator, List, Tuple
+from typing import BinaryIO, Dict, Iterator, List, Tuple
 
 
 class Schedule(object):
@@ -11,6 +13,14 @@ class Schedule(object):
 
     def __str__(self) -> str:
         return f"Schedule(\n{self._schedule}\n)"
+
+    @staticmethod
+    def build(f: BinaryIO) -> "Schedule":
+        schedule: Dict[str, Tuple[int, ...]] = pickle.load(f)
+        return Schedule(schedule)
+
+    def dump(self, f: BinaryIO) -> None:
+        pickle.dump(self._schedule, f)
 
     @staticmethod
     def merge(schedules: Iterator["Schedule"]) -> "Schedule":

@@ -10,7 +10,7 @@ import iree.compiler.dialects
 
 from ...utils.kstat import KStat
 from ...utils.utils import permute_shape
-from ..schedule import Schedule, ScheduleGroup
+from ...utils.schedule import Schedule, ScheduleGroup
 from ..wrapper import DummyValue, OpWrapper
 from .scope import Scope
 
