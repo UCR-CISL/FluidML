@@ -4,6 +4,7 @@ import iree.compiler.ir
 from typing import List
 
 from ..utils.kstat import KStat
+from .schedule import Schedule, ScheduleGroup
 from .scope import Graph
 from .wrapper import OpWrapper
 
@@ -36,7 +37,9 @@ class Analyzer(object):
                 for op in block.operations
             ]
             graph: Graph = Graph(wrappers)
+            group: ScheduleGroup = ScheduleGroup()
             for subgraph in graph.partitioned():
                 for seq in subgraph.pathify():
-                    pass
+                    group |= seq.schedule(kstat)
+            schedule: Schedule = group.merge()
             # TODO(Jinjie Liu): Do something more here.

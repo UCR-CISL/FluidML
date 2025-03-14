@@ -15,6 +15,7 @@ import time
 from itertools import permutations, product
 from typing import Any, Callable, Dict, Generator, List, Tuple, Union
 
+from ..utils.utils import permute_shape
 from .job import CreateSubModJob, BenchSubModJob, Job, ResultJob, JobPool
 from .util import get_signature, map_str_dtype
 
@@ -179,20 +180,10 @@ class Worker(object):
                         )
                         rets += [ret]
                 iree.compiler.dialects.util.return_(rets)
-                combinations: List[List[Tuple[int, ...]]] = []
-                for shape, _ in input_types + result_types:
-                    fixed_indices: List[int] = [
-                        idx for idx, dim in enumerate(shape) if dim == 1
-                    ]
-                    combination: List[Tuple[int, ...]] = list(
-                        filter(
-                            lambda elem: all(
-                                map(lambda idx: idx == elem[idx], fixed_indices)
-                            ),
-                            permutations(range(len(shape))),
-                        )
-                    )
-                    combinations += [combination]
+                combinations: List[List[Tuple[int, ...]]] = [
+                    list(permute_shape(shape))
+                    for shape, _ in input_types + result_types
+                ]
                 for combination in product(*combinations):
                     for idx, axis in enumerate(combination):
                         kernel.attributes[
