@@ -60,7 +60,7 @@ def main():
     profiler: Profiler = Profiler(times, worker_num, check_period, compile_options)
     result: KStat = profiler.run(mod)
     if output:
-        with open(output, "w") as f:
+        with open(output, "wb") as f:
             result.dump(f)
     else:
         result.dump(sys.stdout)

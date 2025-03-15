@@ -1,7 +1,7 @@
-import json
+import pickle
 
 from collections import defaultdict
-from typing import Any, Dict, Optional, TextIO, Tuple, Union
+from typing import Any, BinaryIO, Dict, Optional, Tuple, Union
 
 
 class KStat(object):
@@ -77,15 +77,9 @@ class KStat(object):
         return self._kstat
 
     @classmethod
-    def build(cls, f: TextIO) -> "KStat":
-        kstat: Dict[str, Dict[str, float]] = json.load(f)
-        kstat: Dict[str, Dict[Tuple[Tuple[int, ...], ...], float]] = {
-            k0: {eval(k1): v1 for k1, v1 in v0.items()} for k0, v0 in kstat.items()
-        }
+    def build(cls, f: BinaryIO) -> "KStat":
+        kstat: Dict[str, Dict[Tuple[Tuple[int, ...], ...], float]] = pickle.load(f)
         return cls(kstat)
 
-    def dump(self, f: TextIO) -> None:
-        result: Dict[str, Dict[Tuple[Tuple[int, ...], ...], float]] = {
-            k0: {str(k1): v1 for k1, v1 in v0.items()} for k0, v0 in self._kstat.items()
-        }
-        json.dump(result, f)
+    def dump(self, f: BinaryIO) -> None:
+        pickle.dump(self._kstat, f)
