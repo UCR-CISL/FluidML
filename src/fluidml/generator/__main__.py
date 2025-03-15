@@ -27,7 +27,7 @@ def main():
     with open(schedule, "rb") as f:
         schedule: Schedule = Schedule.build(f)
     generator: Generator = Generator()
-    generator.run(mod, schedule)
+    mod: str = generator.run(mod, schedule)
     with open(output, "w") as f:
         f.write(mod)
 

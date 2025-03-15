@@ -1,4 +1,5 @@
 import iree.compiler.dialects.flow
+import iree.compiler.dialects.util
 import iree.compiler.ir
 
 from collections import defaultdict
