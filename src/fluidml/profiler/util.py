@@ -1,27 +1,12 @@
 import iree.compiler.dialects.func
-import numpy as np
 import re
 
 from typing import Dict, List, Optional, Tuple
-
-__dtype_map: Dict[str, np.dtype] = {
-    "f32": np.float32,
-    "f64": np.float64,
-    "i1": np.bool_,
-    "i32": np.int32,
-    "i64": np.int64,
-    "u32": np.uint32,
-    "u64": np.uint64,
-}
 
 __flow_dispatch_tensor_pattern: re.Pattern = re.compile(
     r"^!flow\.dispatch\.tensor<(readonly|writeonly|readwrite):tensor<((?:\d+x)+[fi]\d+)>>$"
 )
 __fluidml_arg_pattern: re.Pattern = re.compile(r"^fluidml\.(\d+)$")
-
-
-def map_str_dtype(dtype: str) -> np.dtype:
-    return __dtype_map[dtype]
 
 
 def get_signature(

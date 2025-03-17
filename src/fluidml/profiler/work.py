@@ -12,12 +12,12 @@ import numpy as np
 import os
 import time
 
-from itertools import permutations, product
+from itertools import product
 from typing import Any, Callable, Dict, Generator, List, Tuple, Union
 
-from ..utils.utils import permute_shape
+from ..utils.utils import permute_shape, map_str_dtype
 from .job import CreateSubModJob, BenchSubModJob, Job, ResultJob, JobPool
-from .util import get_signature, map_str_dtype
+from .util import get_signature
 
 is_debug: bool = os.getenv("FLUIDML_DEBUG", "0") == "1"
 
@@ -87,17 +87,20 @@ class Worker(object):
                         job_pool.put(BenchSubModJob(mod))
                     job_pool.free()
                 elif isinstance(job, BenchSubModJob):
-                    kernel, axes, exec_time = Worker._work4bench(
-                        job.mod, times, compile_commands
-                    )
-                    job_pool.put(ResultJob(kernel, axes, exec_time))
+                    try:
+                        kernel, axes, exec_time = Worker._work4bench(
+                            job.mod, times, compile_commands
+                        )
+                        job_pool.put(ResultJob(kernel, axes, exec_time))
+                    except iree.compiler.tools.binaries.CompilerToolError as e:
+                        pass
                     job_pool.free()
                 else:
                     raise NotImplementedError(
                         f"Unsupported job {job} of type {type(job)}."
                     )
         except Exception as e:
-            job_pool.throw(e)
+            job_pool.throw(str(e))
 
     @staticmethod
     def _work4create(sub_mod: str) -> Generator[str, None, None]:

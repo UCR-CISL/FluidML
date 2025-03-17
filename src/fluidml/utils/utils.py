@@ -1,5 +1,22 @@
+import numpy as np
+
 from itertools import permutations
-from typing import List, Iterator, Tuple
+from typing import Dict, List, Iterator, Tuple
+
+
+__dtype_map: Dict[str, np.dtype] = {
+    "f32": np.float32,
+    "f64": np.float64,
+    "i1": np.bool_,
+    "i32": np.int32,
+    "i64": np.int64,
+    "u32": np.uint32,
+    "u64": np.uint64,
+}
+
+
+def map_str_dtype(dtype: str) -> np.dtype:
+    return __dtype_map[dtype]
 
 
 def permute_shape(shape: Tuple[int]) -> Iterator[Tuple[int]]:

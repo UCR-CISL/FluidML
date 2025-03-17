@@ -1,12 +1,14 @@
 import iree.compiler.dialects.flow
 import iree.compiler.dialects.util
 import iree.compiler.ir
+import numpy as np
 
-from collections import defaultdict
 from itertools import chain
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 from ..utils.schedule import Schedule
+from ..utils.utils import map_str_dtype
+from .ktable import KTable
 
 
 class Generator(object):
@@ -16,6 +18,7 @@ class Generator(object):
     def run(self, mod: str, schedule: Schedule) -> str:
         with iree.compiler.ir.Context():
             mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(mod)
+            ktable: KTable = KTable(mod)
             func_ops: List[iree.compiler.dialects.util.FuncOp] = list(
                 filter(
                     lambda op: isinstance(op, iree.compiler.dialects.util.FuncOp),
@@ -30,7 +33,6 @@ class Generator(object):
                 )
             else:
                 raise NotImplementedError(f"Unsupported number of FuncOps: {func_ops}")
-            plan: Dict[str, Tuple[int, ...]] = defaultdict(set)
             for region in func_op.regions:
                 for block in region.blocks:
                     for op in block.operations:
@@ -41,22 +43,37 @@ class Generator(object):
                                 schedule[value.get_name()]
                                 for value in chain(op.operands, op.results)
                             )
-                            # TODO(Jinjie Liu): we just randomly assign the layout for now, and it needs improvement in the future
-                            plan[func_name] = layouts
-            for operation in mod.body.operations:
-                if isinstance(
-                    operation.opview, iree.compiler.dialects.flow.ExecutableOp
-                ):
-                    [block] = operation.opview.body.blocks
-                    _, builtin_mod, _ = block.operations
-                    [block] = builtin_mod.body.region.blocks
-                    [kernel] = block.operations
-                    name: str = kernel.sym_name.value
-                    layouts: Tuple[Tuple[int, ...], ...] = plan[name]
-                    for idx, layout in enumerate(layouts):
-                        kernel.attributes[
-                            f"fluidml.{idx}"
-                        ] = iree.compiler.ir.ArrayAttr.parse(
-                            f"array<i64: {', '.join([str(dim) for dim in layout])}>"
-                        )
+                            entry_points: iree.compiler.ir.ArrayAttr = ktable[
+                                func_name, layouts
+                            ]
+                            op.entry_points = entry_points
+                        elif isinstance(op, iree.compiler.dialects.util.GlobalLoadOp):
+                            for global_ in mod.body.operations:
+                                if (
+                                    isinstance(
+                                        global_, iree.compiler.dialects.util.GlobalOp
+                                    )
+                                    and op.global_.value == global_.sym_name.value
+                                ):
+                                    layout: Tuple[int, ...] = schedule[
+                                        op.result.get_name()
+                                    ]
+                                    np_type: np.dtype = map_str_dtype(
+                                        str(global_.type_.value.element_type)
+                                    )
+                                    array: np.ndarray = np.array(
+                                        [elem for elem in global_.initial_value]
+                                    ).astype(np_type)
+                                    array = array.reshape(
+                                        global_.type_.value.shape
+                                    ).transpose(layout)
+                                    if array.dtype == np.bool_:
+                                        value: str = (
+                                            np.packbits(array).tobytes().hex().upper()
+                                        )
+                                    else:
+                                        value: str = array.tobytes().hex().upper()
+                                    global_.initial_value = iree.compiler.ir.Attribute.parse(
+                                        f'dense<"0x{value}"> : {global_.type_.value}'
+                                    )
             return str(mod)

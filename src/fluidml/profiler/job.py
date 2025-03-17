@@ -8,6 +8,15 @@ import multiprocessing.synchronize
 from typing import List, Tuple
 
 
+class JobExecutionError(Exception):
+    def __init__(self, message: str, *args, **kwargs) -> "JobExecutionError":
+        super().__init__(*args, **kwargs)
+        self._message: str = message
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}: {self._message}"
+
+
 class Job(object):
     def __init__(self, *args, **kwargs) -> "Job":
         super().__init__(*args, **kwargs)
@@ -142,7 +151,7 @@ class JobPool(object):
             if self.done:
                 self._cond.notify_all()
 
-    def throw(self, exception: Exception) -> None:
+    def throw(self, exception: str) -> None:
         self._exception_queue.put(exception)
 
     def wait(
@@ -152,8 +161,8 @@ class JobPool(object):
             with self._cond:
                 while not self._cond.wait(timeout=check_period):
                     if not self._exception_queue.empty():
-                        execption: Exception = self._exception_queue.get()
-                        raise execption
+                        execption: str = self._exception_queue.get()
+                        raise JobExecutionError(execption)
                 results: List[Tuple[str, Tuple[Tuple[int, ...]], float]] = []
                 while not self._result_queue.empty():
                     job: ResultJob = self._result_queue.get()
