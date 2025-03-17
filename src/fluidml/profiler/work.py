@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, Generator, List, Tuple, Union
 
 from ..utils.utils import permute_shape, map_str_dtype
 from .job import CreateSubModJob, BenchSubModJob, Job, ResultJob, JobPool
+from .rwlock import RWLock
 from .util import get_signature
 
 is_debug: bool = os.getenv("FLUIDML_DEBUG", "0") == "1"
@@ -36,10 +37,13 @@ class Master(object):
         self._mp_context: multiprocessing.context.SpawnContext = (
             multiprocessing.get_context("spawn")
         )
+        self._rwlock: RWLock = RWLock(self._mp_context)
         self._job_pool: JobPool = JobPool(self._mp_context)
         self._check_period: float = check_period
         self._workers: List[Worker] = [
-            Worker(self._mp_context, self._job_pool, times, compile_options)
+            Worker(
+                self._mp_context, self._rwlock, self._job_pool, times, compile_options
+            )
             for _ in range(worker_num)
         ]
 
@@ -55,6 +59,7 @@ class Worker(object):
     def __init__(
         self,
         mp_context: multiprocessing.context.SpawnContext,
+        rwlock: RWLock,
         job_pool: JobPool,
         times: int,
         compile_options: Dict[str, Any],
@@ -63,12 +68,13 @@ class Worker(object):
     ) -> "Worker":
         super().__init__(*args, **kwargs)
         self._mp_context: multiprocessing.context.SpawnContext = mp_context
+        self._rwlock: RWLock = rwlock
         self._job_pool: JobPool = job_pool
         self._times: int = times
         self._compile_options: Dict[str, Any] = compile_options
         self._worker = self._mp_context.Process(
             target=Worker.run,
-            args=(self._job_pool, times, self._compile_options),
+            args=(self._rwlock, self._job_pool, times, self._compile_options),
             daemon=True,
         )
         self._worker.start()
@@ -78,7 +84,9 @@ class Worker(object):
         self._worker.join()
 
     @staticmethod
-    def run(job_pool: JobPool, times: int, compile_commands: Dict[str, Any]) -> None:
+    def run(
+        rwlock: RWLock, job_pool: JobPool, times: int, compile_commands: Dict[str, Any]
+    ) -> None:
         try:
             while True:
                 job: Job = job_pool.get()
@@ -89,7 +97,7 @@ class Worker(object):
                 elif isinstance(job, BenchSubModJob):
                     try:
                         kernel, axes, exec_time = Worker._work4bench(
-                            job.mod, times, compile_commands
+                            rwlock, job.mod, times, compile_commands
                         )
                         job_pool.put(ResultJob(kernel, axes, exec_time))
                     except iree.compiler.tools.binaries.CompilerToolError as e:
@@ -198,7 +206,7 @@ class Worker(object):
 
     @staticmethod
     def _work4bench(
-        sub_mod: str, times: int, compile_commands: Dict[str, Any]
+        rwlock: RWLock, sub_mod: str, times: int, compile_commands: Dict[str, Any]
     ) -> Tuple[str, Tuple[Tuple[int, ...]], float]:
         with iree.compiler.ir.Context():
             mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(sub_mod)
@@ -214,9 +222,10 @@ class Worker(object):
             if is_debug:
                 exec_time: float = 0.0
             else:
-                compiled_flatbuffer: bytes = iree.compiler.compile_str(
-                    sub_mod, **compile_commands
-                )
+                with rwlock.read():
+                    compiled_flatbuffer: bytes = iree.compiler.compile_str(
+                        sub_mod, **compile_commands
+                    )
                 config: iree.runtime.Config = iree.runtime.Config("local-task")
                 ctx: iree.runtime.SystemContext = iree.runtime.SystemContext(
                     config=config
@@ -232,9 +241,10 @@ class Worker(object):
                     for input_shape, dtype in input_types
                 ]
                 f: Callable = ctx.modules.module[entry]
-                start: int = time.perf_counter_ns()
-                for _ in range(times):
-                    f(*inputs)
-                end: int = time.perf_counter_ns()
+                with rwlock.write():
+                    start: int = time.perf_counter_ns()
+                    for _ in range(times):
+                        f(*inputs)
+                    end: int = time.perf_counter_ns()
                 exec_time: float = (end - start) / times
             return kernel.sym_name.value, axes, exec_time
