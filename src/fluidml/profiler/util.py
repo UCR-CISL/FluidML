@@ -17,7 +17,7 @@ __dtype_map: Dict[str, np.dtype] = {
 __flow_dispatch_tensor_pattern: re.Pattern = re.compile(
     r"^!flow\.dispatch\.tensor<(readonly|writeonly|readwrite):tensor<((?:\d+x)+[fi]\d+)>>$"
 )
-__fluidml_arg_pattern: re.Pattern = re.compile(r"^fluidml\.arg(\d+)axes$")
+__fluidml_arg_pattern: re.Pattern = re.compile(r"^fluidml\.(\d+)$")
 
 
 def map_str_dtype(dtype: str) -> np.dtype:

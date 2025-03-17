@@ -2,7 +2,7 @@ import iree.compiler.dialects.arith
 import iree.compiler.ir
 import sys
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from itertools import product
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
@@ -75,7 +75,14 @@ class Sequence(Scope):
         wind: List[
             Tuple[
                 Union[str, DummyValue],
-                Dict[Tuple[int, ...], Tuple[float, Optional[Tuple[int, ...]]]],
+                Dict[
+                    Tuple[int, ...],
+                    Tuple[
+                        float,
+                        Optional[Tuple[int, ...]],
+                        Dict[str, List[Tuple[int, ...]]],
+                    ],
+                ],
             ]
         ] = []
         for idx, wrapper in enumerate(self):
@@ -97,12 +104,18 @@ class Sequence(Scope):
                     output_idx is not None
                 ), f"Output {output} not found for {wrapper} in {self}."
                 name: str = wrapper.entry
-                assert name in kstat
-                table: Dict[Tuple[int, ...], float] = kstat[name]
+                assert name in kstat, f"Kernel {name} not found in kstat."
+                table: Dict[Tuple[Tuple[int, ...], ...], float] = kstat[name]
+                rtable: Dict[float, List[Tuple[Tuple[int, ...], ...]]] = defaultdict(
+                    list
+                )
+                for k, v in table.items():
+                    rtable[v] += [k]
                 input_choices: Set[Tuple[int, ...]] = {k[input_idx] for k in table}
                 output_choices: Set[Tuple[int, ...]] = {k[output_idx] for k in table}
                 available_choices: Dict[
-                    Tuple[Tuple[int, ...], ...], List[float]
+                    Tuple[Tuple[int, ...], Tuple[int, ...]],
+                    List[float],
                 ] = defaultdict(list)
                 for k, v in table.items():
                     input_layout: Tuple[int, ...] = k[input_idx]
@@ -112,9 +125,26 @@ class Sequence(Scope):
                         and output_layout in output_choices
                     ):
                         available_choices[(input_layout, output_layout)] += [v]
-                choices: Dict[Tuple[Tuple[int, ...], Tuple[int, ...]], float] = {
-                    k: min(v) for k, v in available_choices.items()
-                }
+                choices: Dict[
+                    Tuple[Tuple[int, ...], Tuple[int, ...]],
+                    Tuple[float, Dict[str, List[Tuple[int, ...]]]],
+                ] = {}
+                for k, v in available_choices.items():
+                    input_layout, output_layout = k
+                    min_v: float = min(v)
+                    layout_map: Dict[str, List[Tuple[int, ...]]] = defaultdict(list)
+                    for layouts in rtable[min_v]:
+                        if (
+                            layouts[input_idx] == input_layout
+                            and layouts[output_idx] == output_layout
+                        ):
+                            assert len(layouts) <= len(
+                                wrapper.args
+                            ), f"The size of layouts {layouts} is greater than the size of args {wrapper.args} in {wrapper} in {self}."
+                            for arg, layout in zip(wrapper.args, layouts):
+                                arg_name: str = arg.get_name()
+                                layout_map[arg_name] += [layout]
+                    choices[k] = (min_v, layout_map)
             elif wrapper.force_layout:
                 input_shape: List[int] = (
                     wrapper.arg_types[input_idx].shape if input_idx is not None else []
@@ -124,11 +154,20 @@ class Sequence(Scope):
                     if output_idx is not None
                     else []
                 )
-                choices: Dict[Tuple[Tuple[int, ...], Tuple[int, ...]], float] = {
+                choices: Dict[
+                    Tuple[Tuple[int, ...], Tuple[int, ...]],
+                    Tuple[float, Dict[str, List[Tuple[int, ...]]]],
+                ] = {
                     (
                         tuple(range(len(input_shape))),
                         tuple(range(len(output_shape))),
-                    ): 0.0
+                    ): (
+                        0.0,
+                        {
+                            arg.get_name(): [tuple(range(len(arg.type.shape)))]
+                            for arg in wrapper.args
+                        },
+                    ),
                 }
             elif wrapper.any_layout:
                 input_shape: List[int] = (
@@ -139,13 +178,24 @@ class Sequence(Scope):
                     if output_idx is not None
                     else []
                 )
-                choices: Dict[Tuple[Tuple[int, ...], Tuple[int, ...]], float] = {
-                    combination: 0.0
-                    for combination in product(
-                        permute_shape(tuple(range(len(input_shape)))),
-                        permute_shape(tuple(range(len(output_shape)))),
-                    )
-                }
+                choices: Dict[
+                    Tuple[Tuple[int, ...], Tuple[int, ...]],
+                    Tuple[float, Dict[str, List[Tuple[int, ...]]]],
+                ] = {}
+                for input_layout, output_layout in product(
+                    permute_shape(tuple(range(len(input_shape)))),
+                    permute_shape(tuple(range(len(output_shape)))),
+                ):
+                    layout_map: Dict[str, List[Tuple[int, ...]]] = {}
+                    for idx, arg in enumerate(wrapper.args):
+                        arg_name: str = arg.get_name()
+                        if idx == input_idx:
+                            layout_map[arg_name] = [input_layout]
+                        elif idx == output_idx:
+                            layout_map[arg_name] = [output_layout]
+                        else:
+                            layout_map[arg_name] = [list(permute_shape(arg.type.shape))]
+                    choices[(input_layout, output_layout)] = (0.0, layout_map)
             else:
                 raise NotImplementedError(
                     f"Unsupported OpWrapper: {wrapper} in {self.__class__.__name__}.schedule."
@@ -159,7 +209,9 @@ class Sequence(Scope):
                 else output
             )
             if idx == 0:
-                wind += [(input_key, {k: (v, None) for (k, _), v in choices.items()})]
+                wind += [
+                    (input_key, {k: (t, None, m) for (k, _), (t, m) in choices.items()})
+                ]
             key, ktable = wind[-1]
             assert input_key == key
             input_layouts: Set[Tuple[int, ...]] = set(ktable) & set(
@@ -169,34 +221,48 @@ class Sequence(Scope):
                 input_layouts
             ), f"Input layout on {input} is not found for {wrapper} in {self}."
             exec_time_table: Dict[
-                Tuple[int, ...], Tuple[float, Tuple[int, ...]]
-            ] = defaultdict(lambda: (sys.float_info.max, None))
+                Tuple[int, ...],
+                Tuple[float, Tuple[int, ...], Dict[str, List[Tuple[int, ...]]]],
+            ] = defaultdict(lambda: (sys.float_info.max, None, {}))
             for input_layout in input_layouts:
-                prev_exec_time, _ = ktable[input_layout]
-                for output_layout in map(
-                    lambda k: k[1],
-                    filter(lambda k: k[0] == input_layout, choices),
+                prev_exec_time, _, _ = ktable[input_layout]
+                for output_layout in (
+                    v for _, v in ((k, v) for k, v in choices if k == input_layout)
                 ):
-                    kernel_exec_time: float = choices[(input_layout, output_layout)]
+                    kernel_exec_time, layout_map = choices[
+                        (input_layout, output_layout)
+                    ]
                     total_exec_time: float = prev_exec_time + kernel_exec_time
-                    curr_exec_time, _ = exec_time_table[output_layout]
+                    curr_exec_time, _, _ = exec_time_table[output_layout]
                     if curr_exec_time > total_exec_time:
-                        exec_time_table[output_layout] = (total_exec_time, input_layout)
+                        exec_time_table[output_layout] = (
+                            total_exec_time,
+                            input_layout,
+                            layout_map,
+                        )
             wind += [(output_key, {**exec_time_table})]
         group: ScheduleGroup = ScheduleGroup()
         if wind:
             lk, ltable = wind[-1]
-            min_time: float = min(time for _, (time, _) in ltable.items())
-            for layout, (time, prev) in ltable.items():
+            min_time: float = min(time for _, (time, _, _) in ltable.items())
+            global_layout_map: Dict[str, List[Tuple[int, ...]]] = defaultdict(list)
+            for layout, (time, prev, layout_map) in ltable.items():
                 if time == min_time:
                     rewind: Dict[Union[str, DummyValue], Tuple[int, ...]] = {lk: layout}
                     for (ck, ctable) in wind[-2::-1]:
                         cur: Tuple[int, ...] = prev
-                        _, prev = ctable[cur]
-                        rewind = {ck: cur, **rewind}
+                        for k, v in layout_map.items():
+                            global_layout_map[k] += v
+                        _, prev, layout_map = ctable[cur]
+                        rewind[ck] = cur
                     rewind = {
                         k: v for k, v in rewind.items() if not isinstance(k, DummyValue)
                     }
+                    for k, v in global_layout_map.items():
+                        if k not in rewind:
+                            counter: Counter[Tuple[int, ...]] = Counter(v)
+                            [(layout, _)] = counter.most_common(1)
+                            rewind[k] = layout
                     schedule: Schedule = Schedule(rewind)
                     group += schedule
         return group

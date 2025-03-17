@@ -57,7 +57,7 @@ class KStat(object):
             )
 
     def __str__(self) -> str:
-        return str(self._kstat)
+        return f"{self.__class__.__name__}(\n{self._kstat}\n)"
 
     def contains(self, key: Union[str, Tuple[Any, ...]]) -> bool:
         if isinstance(key, str):

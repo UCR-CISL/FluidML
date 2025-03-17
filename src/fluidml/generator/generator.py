@@ -55,8 +55,8 @@ class Generator(object):
                     layouts: Tuple[Tuple[int, ...], ...] = plan[name]
                     for idx, layout in enumerate(layouts):
                         kernel.attributes[
-                            f"fluidml.arg{idx}axes"
+                            f"fluidml.{idx}"
                         ] = iree.compiler.ir.ArrayAttr.parse(
-                            f"[{', '.join([str(dim) for dim in layout])}]"
+                            f"array<i64: {', '.join([str(dim) for dim in layout])}>"
                         )
             return str(mod)

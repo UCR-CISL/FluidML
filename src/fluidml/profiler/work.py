@@ -185,11 +185,11 @@ class Worker(object):
                     for shape, _ in input_types + result_types
                 ]
                 for combination in product(*combinations):
-                    for idx, axis in enumerate(combination):
+                    for idx, layout in enumerate(combination):
                         kernel.attributes[
-                            f"fluidml.arg{idx}axes"
+                            f"fluidml.{idx}"
                         ] = iree.compiler.ir.Attribute.parse(
-                            f"[{', '.join([str(elem) for elem in axis])}]"
+                            f"array<i64: {', '.join([str(dim) for dim in layout])}>"
                         )
                     yield str(sub_mod)
 

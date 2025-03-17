@@ -59,7 +59,7 @@ def compile_str(input_str: Union[str, bytes], **kwargs) -> bytes:
             **kwargs,
         }
         flow: bytes = iree.compiler.compile_str(input_str, **start_to_flow_kwargs)
-        run(flow, **flow_to_end_kwargs)
+        flow: str = run(flow, **flow_to_end_kwargs)
         return iree.compiler.compile_str(flow, **flow_to_end_kwargs)
     else:
         return iree.compiler.compile_str(input_str, **kwargs)
