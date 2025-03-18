@@ -51,11 +51,19 @@ def compile_str(input_str: Union[str, bytes], **kwargs) -> bytes:
     flow_index: int = COMPILATION_STAGES.index("flow")
     if compile_from_index <= flow_index <= compile_to_index:
         start_to_flow_kwargs: Dict[str, Any] = {
-            "extra_args": [f"--compile-to=flow", *extra_args],
+            "extra_args": [
+                f"--compile-to=flow",
+                "--iree-llvmcpu-disable-distribution",
+                *extra_args,
+            ],
             **kwargs,
         }
         flow_to_end_kwargs: Dict[str, Any] = {
-            "extra_args": [f"--compile-from=flow", *extra_args],
+            "extra_args": [
+                f"--compile-from=flow",
+                "--iree-llvmcpu-disable-distribution",
+                *extra_args,
+            ],
             **kwargs,
         }
         flow: bytes = iree.compiler.compile_str(input_str, **start_to_flow_kwargs)

@@ -17,7 +17,7 @@ from typing import Any, Callable, Dict, Generator, List, Tuple, Union
 
 from ..utils.utils import permute_shape, map_str_dtype
 from .job import CreateSubModJob, BenchSubModJob, Job, ResultJob, JobPool
-from .rwlock import RWLock
+from .exlock import ExclusiveLock
 from .util import get_signature
 
 is_debug: bool = os.getenv("FLUIDML_DEBUG", "0") == "1"
@@ -37,7 +37,7 @@ class Master(object):
         self._mp_context: multiprocessing.context.SpawnContext = (
             multiprocessing.get_context("spawn")
         )
-        self._rwlock: RWLock = RWLock(self._mp_context)
+        self._rwlock: ExclusiveLock = ExclusiveLock(self._mp_context)
         self._job_pool: JobPool = JobPool(self._mp_context)
         self._check_period: float = check_period
         self._workers: List[Worker] = [
@@ -59,7 +59,7 @@ class Worker(object):
     def __init__(
         self,
         mp_context: multiprocessing.context.SpawnContext,
-        rwlock: RWLock,
+        rwlock: ExclusiveLock,
         job_pool: JobPool,
         times: int,
         compile_options: Dict[str, Any],
@@ -68,7 +68,7 @@ class Worker(object):
     ) -> "Worker":
         super().__init__(*args, **kwargs)
         self._mp_context: multiprocessing.context.SpawnContext = mp_context
-        self._rwlock: RWLock = rwlock
+        self._rwlock: ExclusiveLock = rwlock
         self._job_pool: JobPool = job_pool
         self._times: int = times
         self._compile_options: Dict[str, Any] = compile_options
@@ -85,7 +85,10 @@ class Worker(object):
 
     @staticmethod
     def run(
-        rwlock: RWLock, job_pool: JobPool, times: int, compile_commands: Dict[str, Any]
+        rwlock: ExclusiveLock,
+        job_pool: JobPool,
+        times: int,
+        compile_commands: Dict[str, Any],
     ) -> None:
         try:
             while True:
@@ -206,7 +209,10 @@ class Worker(object):
 
     @staticmethod
     def _work4bench(
-        rwlock: RWLock, sub_mod: str, times: int, compile_commands: Dict[str, Any]
+        rwlock: ExclusiveLock,
+        sub_mod: str,
+        times: int,
+        compile_commands: Dict[str, Any],
     ) -> Tuple[str, Tuple[Tuple[int, ...]], float]:
         with iree.compiler.ir.Context():
             mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(sub_mod)
@@ -222,7 +228,7 @@ class Worker(object):
             if is_debug:
                 exec_time: float = 0.0
             else:
-                with rwlock.read():
+                with rwlock.blue():
                     compiled_flatbuffer: bytes = iree.compiler.compile_str(
                         sub_mod, **compile_commands
                     )
@@ -241,7 +247,7 @@ class Worker(object):
                     for input_shape, dtype in input_types
                 ]
                 f: Callable = ctx.modules.module[entry]
-                with rwlock.write():
+                with rwlock.red():
                     start: int = time.perf_counter_ns()
                     for _ in range(times):
                         f(*inputs)
