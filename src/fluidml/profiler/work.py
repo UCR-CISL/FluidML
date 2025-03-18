@@ -1,15 +1,19 @@
-import multiprocessing.process
+import gc
 import iree.compiler
 import iree.compiler.ir
 import iree.compiler.dialects.func
+import iree.compiler.dialects.hal
 import iree.compiler.dialects.util
 import iree.runtime
 import multiprocessing
 import multiprocessing.connection
 import multiprocessing.context
+import multiprocessing.process
 import multiprocessing.spawn
 import numpy as np
 import os
+import psutil
+import sys
 import time
 
 from itertools import product
@@ -42,9 +46,14 @@ class Master(object):
         self._check_period: float = check_period
         self._workers: List[Worker] = [
             Worker(
-                self._mp_context, self._rwlock, self._job_pool, times, compile_options
+                idx,
+                self._mp_context,
+                self._rwlock,
+                self._job_pool,
+                times,
+                compile_options,
             )
-            for _ in range(worker_num)
+            for idx in range(worker_num)
         ]
 
     def run(
@@ -58,6 +67,7 @@ class Master(object):
 class Worker(object):
     def __init__(
         self,
+        index: int,
         mp_context: multiprocessing.context.SpawnContext,
         rwlock: ExclusiveLock,
         job_pool: JobPool,
@@ -67,6 +77,7 @@ class Worker(object):
         **kwargs,
     ) -> "Worker":
         super().__init__(*args, **kwargs)
+        self._index: int = index
         self._mp_context: multiprocessing.context.SpawnContext = mp_context
         self._rwlock: ExclusiveLock = rwlock
         self._job_pool: JobPool = job_pool
@@ -77,6 +88,8 @@ class Worker(object):
             args=(self._rwlock, self._job_pool, times, self._compile_options),
             daemon=True,
         )
+        process: psutil.Process = psutil.Process(self._worker.pid)
+        process.cpu_affinity([self._index % psutil.cpu_count()])
         self._worker.start()
 
     def __del__(self) -> None:
@@ -247,10 +260,21 @@ class Worker(object):
                     for input_shape, dtype in input_types
                 ]
                 f: Callable = ctx.modules.module[entry]
+                for _ in range(times // 10):
+                    # warm up
+                    f(*inputs)
                 with rwlock.red():
-                    start: int = time.perf_counter_ns()
+                    exec_time: float = sys.float_info.max
                     for _ in range(times):
-                        f(*inputs)
-                    end: int = time.perf_counter_ns()
-                exec_time: float = (end - start) / times
+                        gc.disable()
+                        start: int = time.perf_counter_ns()
+                        try:
+                            f(*inputs)
+                        except Exception as e:
+                            gc.enable()
+                            raise e
+                        end: int = time.perf_counter_ns()
+                        gc.enable()
+                        if (delta := end * 1.0 - start) < exec_time:
+                            exec_time = delta
             return kernel.sym_name.value, axes, exec_time

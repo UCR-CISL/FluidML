@@ -10,6 +10,7 @@ setuptools.setup(
         "iree-base-compiler@git+https://github.com/UCR-CISL/iree-fluidml.git@fluidml-dev#subdirectory=compiler",
         "iree-base-runtime@git+https://github.com/UCR-CISL/iree-fluidml.git@fluidml-dev#subdirectory=runtime",
         "numpy",
+        "psutil",
     ],
     entry_points={
         "console_scripts": [
