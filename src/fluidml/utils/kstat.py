@@ -1,7 +1,7 @@
 import pickle
 
 from collections import defaultdict
-from typing import Any, BinaryIO, Dict, Optional, Tuple, Union
+from typing import Any, BinaryIO, Dict, Iterator, Optional, Tuple, Union
 
 
 class KStat(object):
@@ -23,7 +23,7 @@ class KStat(object):
         return self.contains(key)
 
     def __getitem__(
-        self, key: Union[str, Tuple[Tuple[int, ...], ...]]
+        self, key: Union[str, Iterator[Tuple[int, ...]]]
     ) -> Union[Dict[Tuple[Tuple[int, ...], ...], float], float]:
         if isinstance(key, str):
             return self._kstat[key]

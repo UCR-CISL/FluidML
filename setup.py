@@ -16,6 +16,7 @@ setuptools.setup(
             "fluidml-analyzer = fluidml.analyzer.__main__:main",
             "fluidml-generator = fluidml.generator.__main__:main",
             "fluidml-profiler = fluidml.profiler.__main__:main",
+            "ablation-tool = fluidml.tools.ablation_tool:main",
         ]
     },
     extras_require={
