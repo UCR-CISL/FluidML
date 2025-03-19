@@ -26,7 +26,7 @@ class Profiler(object):
         extra_args: str = compile_options.get("extra_args", [])
         extra_args = [
             arg for arg in extra_args if not arg.startswith("--compile-from=")
-        ] + ["--compile-from=flow", "--iree-llvmcpu-disable-distribution"]
+        ] + ["--compile-from=flow"]
         compile_options["extra_args"] = extra_args
         self._master: Master = Master(
             times, worker_num, check_period, profile_cache, compile_options
