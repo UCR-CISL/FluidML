@@ -52,7 +52,7 @@ def compile_str(input_str: Union[str, bytes], **kwargs) -> bytes:
     if compile_from_index <= flow_index <= compile_to_index:
         start_to_flow_kwargs: Dict[str, Any] = {
             "extra_args": [
-                f"--compile-to=flow",
+                "--compile-to=flow",
                 "--iree-llvmcpu-disable-distribution",
                 *extra_args,
             ],
@@ -60,7 +60,7 @@ def compile_str(input_str: Union[str, bytes], **kwargs) -> bytes:
         }
         flow_to_end_kwargs: Dict[str, Any] = {
             "extra_args": [
-                f"--compile-from=flow",
+                "--compile-from=flow",
                 "--iree-llvmcpu-disable-distribution",
                 *extra_args,
             ],

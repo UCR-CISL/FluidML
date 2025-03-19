@@ -43,7 +43,7 @@ def main():
     time_map: Dict[str, Tuple[float, float]] = _run(mod, kstat, schedule)
     etime: float = sum(e for _, e in time_map.values())
     stime: float = sum(s for s, _ in time_map.values())
-    improve: float = sum(e - s for s, e in time_map.values())
+    improve: float = etime - stime
     with open(output, "w") as f:
         json.dump(
             {

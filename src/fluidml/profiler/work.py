@@ -1,4 +1,5 @@
 import gc
+import io
 import iree.compiler
 import iree.compiler.ir
 import iree.compiler.dialects.func
@@ -17,7 +18,7 @@ import sys
 import time
 
 from itertools import product
-from typing import Any, Callable, Dict, Generator, List, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from ..utils.utils import permute_shape, map_str_dtype
 from .job import CreateSubModJob, BenchSubModJob, Job, ResultJob, JobPool
@@ -33,6 +34,7 @@ class Master(object):
         times: int,
         worker_num: int,
         check_period: float,
+        profile_cache: Optional[str],
         compile_options: Dict[str, Any],
         *args,
         **kwargs,
@@ -44,6 +46,7 @@ class Master(object):
         self._rwlock: ExclusiveLock = ExclusiveLock(self._mp_context)
         self._job_pool: JobPool = JobPool(self._mp_context)
         self._check_period: float = check_period
+        self._profile_cache: Optional[str] = profile_cache
         self._workers: List[Worker] = [
             Worker(
                 idx,
@@ -51,6 +54,7 @@ class Master(object):
                 self._rwlock,
                 self._job_pool,
                 times,
+                profile_cache,
                 compile_options,
             )
             for idx in range(worker_num)
@@ -59,6 +63,9 @@ class Master(object):
     def run(
         self, sub_mods: List[str]
     ) -> List[Tuple[str, Tuple[Tuple[int, ...]], float]]:
+        if self._profile_cache is not None:
+            if not os.path.exists(self._profile_cache):
+                os.makedirs(self._profile_cache)
         for sub_mod in sub_mods:
             self._job_pool.put(CreateSubModJob(sub_mod))
         return self._job_pool.wait(self._check_period)
@@ -72,6 +79,7 @@ class Worker(object):
         rwlock: ExclusiveLock,
         job_pool: JobPool,
         times: int,
+        profile_cache: Optional[str],
         compile_options: Dict[str, Any],
         *args,
         **kwargs,
@@ -85,7 +93,13 @@ class Worker(object):
         self._compile_options: Dict[str, Any] = compile_options
         self._worker = self._mp_context.Process(
             target=Worker.run,
-            args=(self._rwlock, self._job_pool, times, self._compile_options),
+            args=(
+                self._rwlock,
+                self._job_pool,
+                times,
+                profile_cache,
+                self._compile_options,
+            ),
             daemon=True,
         )
         process: psutil.Process = psutil.Process(self._worker.pid)
@@ -101,13 +115,19 @@ class Worker(object):
         rwlock: ExclusiveLock,
         job_pool: JobPool,
         times: int,
+        profile_cache: Optional[str],
         compile_commands: Dict[str, Any],
     ) -> None:
         try:
+            if profile_cache is not None:
+                logpath: str = os.path.join(profile_cache, f"worker_{os.getpid()}.log")
+                logf: Optional[io.TextIOWrapper] = open(logpath, "w")
+            else:
+                logf = None
             while True:
                 job: Job = job_pool.get()
                 if isinstance(job, CreateSubModJob):
-                    for mod in Worker._work4create(job._mod):
+                    for mod in Worker._work4create(job._mod, profile_cache):
                         job_pool.put(BenchSubModJob(mod))
                     job_pool.free()
                 elif isinstance(job, BenchSubModJob):
@@ -117,7 +137,8 @@ class Worker(object):
                         )
                         job_pool.put(ResultJob(kernel, axes, exec_time))
                     except iree.compiler.tools.binaries.CompilerToolError as e:
-                        pass
+                        if logf:
+                            logf.write(f"Error: {e}\nModule: {job.mod}\n")
                     job_pool.free()
                 else:
                     raise NotImplementedError(
@@ -125,9 +146,14 @@ class Worker(object):
                     )
         except Exception as e:
             job_pool.throw(str(e))
+        finally:
+            if logf is not None:
+                logf.close()
 
     @staticmethod
-    def _work4create(sub_mod: str) -> Generator[str, None, None]:
+    def _work4create(
+        sub_mod: str, profile_cache: Optional[str]
+    ) -> Generator[str, None, None]:
         with iree.compiler.ir.Context(), iree.compiler.ir.Location.unknown():
             sub_mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(sub_mod)
             [_, operation] = sub_mod.body.operations
@@ -218,7 +244,15 @@ class Worker(object):
                         ] = iree.compiler.ir.Attribute.parse(
                             f"array<i64: {', '.join([str(dim) for dim in layout])}>"
                         )
-                    yield str(sub_mod)
+                    sub_mod_text: str = str(sub_mod)
+                    if profile_cache is not None:
+                        sub_mod_path: str = os.path.join(
+                            profile_cache,
+                            f'{kernel_name}_{"_".join("x".join(map(str,layout)) for layout in combination)}.mlir',
+                        )
+                        with open(sub_mod_path, "w") as f:
+                            f.write(sub_mod_text)
+                    yield str(sub_mod_text)
 
     @staticmethod
     def _work4bench(

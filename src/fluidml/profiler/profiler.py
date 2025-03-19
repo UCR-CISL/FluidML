@@ -5,7 +5,7 @@ import iree.compiler.dialects.hal
 import iree.compiler.dialects.util
 import iree.runtime
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..utils.kstat import KStat
 from .work import Master
@@ -17,6 +17,7 @@ class Profiler(object):
         times: int,
         worker_num: int,
         check_period: float,
+        profile_cache: Optional[str],
         compile_options: Dict[str, Any],
         *args,
         **kwargs,
@@ -27,7 +28,9 @@ class Profiler(object):
             arg for arg in extra_args if not arg.startswith("--compile-from=")
         ] + ["--compile-from=flow", "--iree-llvmcpu-disable-distribution"]
         compile_options["extra_args"] = extra_args
-        self._master: Master = Master(times, worker_num, check_period, compile_options)
+        self._master: Master = Master(
+            times, worker_num, check_period, profile_cache, compile_options
+        )
 
     def run(self, mod: str) -> KStat:
         with iree.compiler.ir.Context():

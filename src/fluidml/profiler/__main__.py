@@ -37,6 +37,12 @@ def main():
         help="check period for worker status",
     )
     parser.add_argument(
+        "--profile-cache",
+        default=None,
+        type=str,
+        help="cache file for profiling results",
+    )
+    parser.add_argument(
         "--compile-options",
         default="{}",
         type=str,
@@ -55,9 +61,12 @@ def main():
     times: int = args.times
     worker_num: int = args.jobs
     check_period: float = args.check_period
+    profile_cache: Optional[str] = args.profile_cache
     compile_options: Dict[str, Any] = eval(args.compile_options)
     output: Optional[str] = args.output
-    profiler: Profiler = Profiler(times, worker_num, check_period, compile_options)
+    profiler: Profiler = Profiler(
+        times, worker_num, check_period, profile_cache, compile_options
+    )
     result: KStat = profiler.run(mod)
     if output:
         with open(output, "wb") as f:
