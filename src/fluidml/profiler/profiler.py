@@ -41,7 +41,7 @@ class Profiler(object):
         extra_args: str = compile_options.get("extra_args", [])
         extra_args = [
             arg for arg in extra_args if not arg.startswith("--compile-from=")
-        ] + ["--compile-from=flow"]
+        ] + ["--compile-from=flow", "--iree-llvmcpu-enable-ukernels=none"]
         compile_options["extra_args"] = extra_args
 
     def run(self, mod: str) -> KStat:

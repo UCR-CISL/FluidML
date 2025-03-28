@@ -21,7 +21,7 @@ def main():
     parser.add_argument(
         "--times",
         type=int,
-        default=1,
+        default=20,
         help="number of times to benchmark each kernel",
     )
     parser.add_argument(
