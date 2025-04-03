@@ -27,6 +27,7 @@ class Profiler(object):
         times: int,
         worker_num: int,
         check_period: float,
+        driver: str,
         profile_cache: Optional[str],
         compile_options: Dict[str, Any],
         *args,
@@ -36,13 +37,14 @@ class Profiler(object):
         self._times: int = times
         self._worker_num: int = worker_num
         self._check_period: float = check_period
+        self._driver: str = driver
         self._profile_cache: Optional[str] = profile_cache
-        self._compile_commands: Dict[str, Any] = compile_options
         extra_args: str = compile_options.get("extra_args", [])
         extra_args = [
             arg for arg in extra_args if not arg.startswith("--compile-from=")
         ] + ["--compile-from=flow", "--iree-llvmcpu-enable-ukernels=none"]
         compile_options["extra_args"] = extra_args
+        self._compile_commands: Dict[str, Any] = compile_options
 
     def run(self, mod: str) -> KStat:
         mp_context: multiprocessing.context.BaseContext = multiprocessing.get_context(
@@ -213,7 +215,7 @@ class Profiler(object):
                             ]
                             for layouts, buffer in sub_mods:
                                 config: iree.runtime.Config = iree.runtime.Config(
-                                    "local-task"
+                                    self._driver
                                 )
                                 ctx: iree.runtime.SystemContext = (
                                     iree.runtime.SystemContext(config=config)

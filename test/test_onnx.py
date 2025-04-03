@@ -56,11 +56,20 @@ from typing import Callable, List, Tuple, Union
         ),
     ],
 )
+@pytest.mark.parametrize(
+    "backend, driver",
+    [
+        ("cuda", "cuda"),
+        ("llvm-cpu", "local-task"),
+    ],
+)
 def test_onnx(
     name: str,
     url: str,
     entry: str,
     inputs: Tuple[Tuple[Tuple[int, ...], np.dtype]],
+    backend: str,
+    driver: str,
 ) -> None:
     digest: int = hashlib.md5(name.encode()).hexdigest()
     temp_dir: str = tempfile.gettempdir()
@@ -87,9 +96,9 @@ def test_onnx(
         parsed_args: argparse.Namespace = m.parse_arguments(onnx_args)
         m.main(parsed_args)
     compiled_flatbuffer: bytes = fluidml.compiler.compile_file(
-        mlir_path, target_backends=["llvm-cpu"]
+        mlir_path, driver, target_backends=[backend]
     )
-    config: iree.runtime.Config = iree.runtime.Config("local-task")
+    config: iree.runtime.Config = iree.runtime.Config(driver)
     ctx: iree.runtime.SystemContext = iree.runtime.SystemContext(config=config)
     vm_module: iree.runtime.VmModule = iree.runtime.VmModule.copy_buffer(
         ctx.instance, compiled_flatbuffer

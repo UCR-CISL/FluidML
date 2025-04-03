@@ -44,9 +44,16 @@ def fc(a: np.ndarray, b: np.ndarray) -> np.ndarray:
         (
             "fc.mlir",
             "fc",
-            (((256, 256), np.float32) for _ in range(2)),
+            (((256, 256), np.float32), ((256, 256), np.float32)),
             fc,
         ),
+    ],
+)
+@pytest.mark.parametrize(
+    "backend, driver",
+    [
+        ("cuda", "cuda"),
+        ("llvm-cpu", "local-task"),
     ],
 )
 def test_mlir(
@@ -54,12 +61,14 @@ def test_mlir(
     entry: str,
     inputs: Tuple[Tuple[Tuple[int, ...], np.dtype]],
     func: Callable,
+    backend: str,
+    driver: str,
 ) -> None:
     path: str = os.path.join(mlir_path, file)
     compiled_flatbuffer: bytes = fluidml.compiler.compile_file(
-        path, target_backends=["llvm-cpu"]
+        path, driver, target_backends=[backend]
     )
-    config: iree.runtime.Config = iree.runtime.Config("local-task")
+    config: iree.runtime.Config = iree.runtime.Config(driver)
     ctx: iree.runtime.SystemContext = iree.runtime.SystemContext(config=config)
     vm_module: iree.runtime.VmModule = iree.runtime.VmModule.copy_buffer(
         ctx.instance, compiled_flatbuffer
