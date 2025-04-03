@@ -8,7 +8,7 @@ from .profiler import Profiler
 from .utils.kstat import KStat
 from .utils.schedule import Schedule
 
-times: int = int(os.getenv("FLUIDML_TIME", 20))
+times: int = int(os.getenv("FLUIDML_TIME", 50))
 worker_num: int = int(os.getenv("FLUIDML_WORKER_NUM", os.cpu_count()))
 check_period: float = float(os.getenv("FLUIDML_CHECK_PERIOD", 5.0))
 profile_cache: Optional[str] = os.getenv("FLUIDML_PROFILE_CACHE", None)
