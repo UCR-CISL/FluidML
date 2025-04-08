@@ -11,6 +11,7 @@ setuptools.setup(
         "iree-base-runtime@git+https://github.com/UCR-CISL/iree-fluidml.git@fluidml-dev#subdirectory=runtime",
         "numpy",
         "psutil",
+        "torch[cuda]",
     ],
     entry_points={
         "console_scripts": [

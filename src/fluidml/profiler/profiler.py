@@ -11,6 +11,7 @@ import numpy as np
 import os
 import sys
 import time
+import torch
 
 from itertools import product
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -236,15 +237,33 @@ class Profiler(object):
                                 exec_time: float = sys.float_info.max
                                 for _ in range(self._times):
                                     gc.disable()
-                                    start: int = time.perf_counter_ns()
+                                    if self._driver == "cuda":
+                                        torch.cuda.synchronize()
+                                        start_event: torch.cuda.Event = (
+                                            torch.cuda.Event(enable_timing=True)
+                                        )
+                                        end_event: torch.cuda.Event = torch.cuda.Event(
+                                            enable_timing=True
+                                        )
+                                        start_event.record()
+                                    else:
+                                        start: int = time.perf_counter_ns()
                                     try:
                                         f(*inputs)
                                     except Exception as e:
                                         gc.enable()
                                         raise e
-                                    end: int = time.perf_counter_ns()
+                                    if self._driver == "cuda":
+                                        end_event.record()
+                                        torch.cuda.synchronize()
+                                        cur_time: float = (
+                                            start_event.elapsed_time(end_event) * 1e6
+                                        )
+                                    else:
+                                        end: int = time.perf_counter_ns()
+                                        cur_time: float = (end - start) * 1.0
                                     gc.enable()
-                                    exec_time = min(exec_time, end * 1.0 - start)
+                                    exec_time = min(exec_time, cur_time)
                                 kstat[kernel_name, layouts] = exec_time
         return kstat
 
