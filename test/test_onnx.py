@@ -43,7 +43,7 @@ from typing import Callable, List, Tuple, Union
             (((1, 3, 224, 224), np.float32),),
         ),
         (
-            "resent50-v1-12",
+            "resnet50-v1-12",
             "https://github.com/onnx/models/raw/refs/heads/main/validated/vision/classification/resnet/model/resnet50-v1-12.onnx",
             "mxnet_converted_model",
             (((1, 3, 224, 224), np.float32),),
