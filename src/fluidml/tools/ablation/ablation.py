@@ -1,3 +1,4 @@
+from collections import defaultdict
 import iree.compiler.dialects.flow
 import iree.compiler.dialects.util
 import json
@@ -78,7 +79,7 @@ class Ablation(object):
                 )
             else:
                 raise NotImplementedError(f"Unsupported number of FuncOps: {func_ops}")
-            time_map: Dict[str, Tuple[float, float]] = {}
+            time_map: Dict[str, Tuple[float, float]] = defaultdict(lambda: (0.0, 0.0))
             for region in func_op.regions:
                 for block in region.blocks:
                     for op in block.operations:
@@ -103,7 +104,11 @@ class Ablation(object):
                             ):
                                 layouts = layouts[: len(op.operands)]
                             stime: float = kstat[func_name, layouts]
-                            time_map[func_name] = (stime, etime)
+                            pstime, petime = time_map[func_name]
+                            time_map[func_name] = (
+                                pstime + stime,
+                                petime + etime,
+                            )
             return Ablation(time_map)
 
     @staticmethod
