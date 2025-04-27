@@ -4,7 +4,7 @@ from typing import Optional, Union
 
 from .analyzer import Analyzer
 from .generator import Generator
-from .profiler import Profiler
+from .profiler import KernelProfiler
 from .utils.kstat import KStat
 from .utils.schedule import Schedule
 
@@ -21,7 +21,7 @@ def run(flow: Union[str, bytes], driver: str, **kwargs) -> str:
         mod: str = flow
     else:
         raise TypeError(f"Unsupported type {type(flow)} for fulidml.run")
-    profiler: Profiler = Profiler(
+    profiler: KernelProfiler = KernelProfiler(
         times, worker_num, check_period, driver, profile_cache, kwargs
     )
     kstat: KStat = profiler.run(mod)

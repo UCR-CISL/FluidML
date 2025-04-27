@@ -5,7 +5,7 @@ import sys
 from typing import Any, Dict, Optional
 
 from ..utils.kstat import KStat
-from .profiler import Profiler
+from .kernel import KernelProfiler
 
 
 def main():
@@ -60,6 +60,13 @@ def main():
         type=str,
         help="output file for benchmark results",
     )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["kernel", "io"],
+        required=True,
+        help="mode for profiler",
+    )
     args: argparse.Namespace = parser.parse_args()
     filename: str = args.filename
     with open(filename, "r") as f:
@@ -71,7 +78,7 @@ def main():
     profile_cache: Optional[str] = args.profile_cache
     compile_options: Dict[str, Any] = eval(args.compile_options)
     output: Optional[str] = args.output
-    profiler: Profiler = Profiler(
+    profiler: KernelProfiler = KernelProfiler(
         times, worker_num, check_period, driver, profile_cache, compile_options
     )
     result: KStat = profiler.run(mod)

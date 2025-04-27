@@ -1,3 +1,3 @@
-from .profiler import Profiler
+from .kernel import KernelProfiler
 
-__all__ = ["Profiler"]
+__all__ = ["KernelProfiler"]
