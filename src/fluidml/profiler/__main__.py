@@ -2,13 +2,21 @@ import argparse
 import os
 import sys
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypeVar
 
 from ..utils.kstat import KStat
+from .io import IOProfiler
 from .kernel import KernelProfiler
+from .profiler import Profiler
+
+ProfilerCls = TypeVar("ProfilerCls", bound="Profiler")
 
 
 def main():
+    dispatch_table: Dict[str, Profiler] = {
+        "kernel": KernelProfiler,
+        "io": IOProfiler,
+    }
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="profiler for FluidML pipelines",
         allow_abbrev=True,
@@ -63,7 +71,7 @@ def main():
     parser.add_argument(
         "--mode",
         type=str,
-        choices=["kernel", "io"],
+        choices=dispatch_table.keys(),
         required=True,
         help="mode for profiler",
     )
@@ -78,7 +86,8 @@ def main():
     profile_cache: Optional[str] = args.profile_cache
     compile_options: Dict[str, Any] = eval(args.compile_options)
     output: Optional[str] = args.output
-    profiler: KernelProfiler = KernelProfiler(
+    cls: ProfilerCls = dispatch_table[args.mode]
+    profiler: ProfilerCls = cls(
         times, worker_num, check_period, driver, profile_cache, compile_options
     )
     result: KStat = profiler.run(mod)
