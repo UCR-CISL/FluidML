@@ -1,7 +1,14 @@
+import iree.compiler.dialects.flow
+import iree.compiler.dialects.func
+import iree.compiler.dialects.hal
+import iree.compiler.dialects.util
+import iree.compiler.ir
+
 from abc import abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from ..utils.kstat import KStat
+from .util import get_signature
 
 
 class Profiler(object):
@@ -34,3 +41,91 @@ class Profiler(object):
         raise NotImplementedError(
             f"Profiler.run() must be implemented in {self.__class__.__name__} class"
         )
+
+    @staticmethod
+    def _build_benchmark(
+        kernel: iree.compiler.ir.Operation, ip: iree.compiler.ir.InsertionPoint
+    ) -> str:
+        (
+            kernel_name,
+            mod_name,
+            input_types,
+            result_types,
+            _,
+        ) = get_signature(kernel)
+        fname: str = f"{kernel_name}_benchmark"
+        ftype: iree.compiler.ir.Attribute = iree.compiler.ir.Attribute.parse(
+            f"({', '.join(['!hal.buffer_view' for _ in input_types])}) -> ({', '.join(['!hal.buffer_view' for _ in result_types])})"
+        )
+        with kernel.location:
+            func_op: iree.compiler.dialects.util.FuncOp = (
+                iree.compiler.dialects.util.func(
+                    fname,
+                    ftype,
+                    sym_visibility="public",
+                    loc=kernel.location,
+                    ip=ip,
+                )
+            )
+            block: iree.compiler.ir.Block = func_op.body.blocks.append(
+                *(iree.compiler.ir.Type.parse("!hal.buffer_view") for _ in input_types),
+            )
+            with iree.compiler.ir.InsertionPoint(block):
+                arguments: List[iree.compiler.ir.OpResult] = []
+                export_types: List[iree.compiler.ir.Type] = [
+                    iree.compiler.ir.Type.parse(
+                        f'tensor<{"x".join([*[str(elem) for elem in shape], ftype])}>'
+                    )
+                    for (shape, ftype) in result_types
+                ]
+                for source, input_type in zip(block.arguments, input_types):
+                    shape, dtype = input_type
+                    source_type: iree.compiler.ir.Type = iree.compiler.ir.Type.parse(
+                        f'tensor<{"x".join([*[str(elem) for elem in shape], dtype])}>'
+                    )
+                    source_encoding: iree.compiler.ir.TypeAttr = (
+                        iree.compiler.ir.TypeAttr.get(source_type)
+                    )
+                    argument: iree.compiler.ir.OpResult = (
+                        iree.compiler.dialects.hal.tensor_import(
+                            source_type,
+                            source,
+                            source_encoding,
+                            [],
+                        )
+                    )
+                    arguments += [argument]
+                    exports: Union[
+                        iree.compiler.ir.Operation,
+                        iree.compiler.ir.OpResult,
+                        List[iree.compiler.ir.Operation],
+                        List[iree.compiler.ir.OpResult],
+                    ] = iree.compiler.dialects.flow.dispatch(
+                        export_types,
+                        [],
+                        iree.compiler.ir.Attribute.parse(
+                            f'[@"{mod_name}"::@"{kernel_name}"]'
+                        ),
+                        arguments,
+                        [],
+                        [],
+                    )
+                if not isinstance(exports, list):
+                    exports = [exports]
+                rets: List[iree.compiler.ir.Operation] = []
+                for export in exports:
+                    if isinstance(export, iree.compiler.ir.OpResult):
+                        target: iree.compiler.ir.Type = iree.compiler.ir.Type.parse(
+                            "!hal.buffer_view"
+                        )
+                        source_encoding: iree.compiler.ir.TypeAttr = (
+                            iree.compiler.ir.TypeAttr.get(export.type)
+                        )
+                        ret: iree.compiler.ir.OpResult = (
+                            iree.compiler.dialects.hal.tensor_export(
+                                target, export, source_encoding, []
+                            )
+                        )
+                        rets += [ret]
+                iree.compiler.dialects.util.return_(rets)
+        return fname

@@ -87,183 +87,109 @@ class KernelProfiler(Profiler):
                         assert isinstance(kernel, iree.compiler.dialects.func.FuncOp)
                         (
                             kernel_name,
-                            mod_name,
+                            _,
                             input_types,
                             result_types,
                             _,
                         ) = get_signature(kernel)
-                        fname: str = f"invoke_{kernel_name}$async"
-                        ftype: iree.compiler.ir.Attribute = iree.compiler.ir.Attribute.parse(
-                            f"({', '.join(['!hal.buffer_view' for _ in input_types])}) -> ({', '.join(['!hal.buffer_view' for _ in result_types])})"
+                        fname: str = self._build_benchmark(
+                            kernel, iree.compiler.ir.InsertionPoint(sub_mod.body)
                         )
-                        func_op: iree.compiler.dialects.util.FuncOp = (
-                            iree.compiler.dialects.util.func(
-                                fname,
-                                ftype,
-                                ip=iree.compiler.ir.InsertionPoint(sub_mod.body),
-                                sym_visibility="public",
-                            )
+                        combinations: List[List[Tuple[int, ...]]] = [
+                            list(permute_shape(shape))
+                            for shape, _ in input_types + result_types
+                        ]
+                        combinations: List[Tuple[Tuple[int, ...], ...]] = list(
+                            product(*combinations)
                         )
-                        block: iree.compiler.ir.Block = func_op.body.blocks.append(
-                            *(
-                                iree.compiler.ir.Type.parse("!hal.buffer_view")
-                                for _ in input_types
-                            ),
-                        )
-                        with iree.compiler.ir.InsertionPoint(block):
-                            arguments: List[iree.compiler.ir.OpResult] = []
-                            export_types: List[iree.compiler.ir.Type] = [
-                                iree.compiler.ir.Type.parse(
-                                    f'tensor<{"x".join([*[str(elem) for elem in shape], ftype])}>'
+                        sub_mod_texts: List[str] = []
+                        for combination in combinations:
+                            for idx, layout in enumerate(combination):
+                                kernel.attributes[
+                                    f"fluidml.{idx}"
+                                ] = iree.compiler.ir.Attribute.parse(
+                                    f"array<i64: {', '.join([str(dim) for dim in layout])}>"
                                 )
-                                for (shape, ftype) in result_types
-                            ]
-                            for source, input_type in zip(block.arguments, input_types):
-                                shape, dtype = input_type
-                                source_type: iree.compiler.ir.Type = iree.compiler.ir.Type.parse(
-                                    f'tensor<{"x".join([*[str(elem) for elem in shape], dtype])}>'
+                            sub_mod_text: str = str(sub_mod)
+                            if self._profile_cache is not None:
+                                sub_mod_path: str = os.path.join(
+                                    self._profile_cache,
+                                    f'{kernel_name}_{"_".join("x".join(map(str,layout)) for layout in combination)}.mlir',
                                 )
-                                source_encoding: iree.compiler.ir.TypeAttr = (
-                                    iree.compiler.ir.TypeAttr.get(source_type)
-                                )
-                                argument: iree.compiler.ir.OpResult = (
-                                    iree.compiler.dialects.hal.tensor_import(
-                                        source_type, source, source_encoding, []
-                                    )
-                                )
-                                arguments += [argument]
-                            exports: Union[
-                                iree.compiler.ir.Operation,
-                                iree.compiler.ir.OpResult,
-                                List[iree.compiler.ir.Operation],
-                                List[iree.compiler.ir.OpResult],
-                            ] = iree.compiler.dialects.flow.dispatch(
-                                export_types,
-                                [],
-                                iree.compiler.ir.Attribute.parse(
-                                    f'[@"{mod_name}"::@"{kernel_name}"]'
-                                ),
-                                arguments,
-                                [],
-                                [],
-                            )
-                            if not isinstance(exports, list):
-                                exports = [exports]
-                            rets: List[iree.compiler.ir.Operation] = []
-                            for export in exports:
-                                if isinstance(export, iree.compiler.ir.OpResult):
-                                    target: iree.compiler.ir.Type = (
-                                        iree.compiler.ir.Type.parse("!hal.buffer_view")
-                                    )
-                                    source_encoding: iree.compiler.ir.TypeAttr = (
-                                        iree.compiler.ir.TypeAttr.get(export.type)
-                                    )
-                                    ret: iree.compiler.ir.OpResult = (
-                                        iree.compiler.dialects.hal.tensor_export(
-                                            target, export, source_encoding, []
-                                        )
-                                    )
-                                    rets += [ret]
-                            iree.compiler.dialects.util.return_(rets)
-                            combinations: List[List[Tuple[int, ...]]] = [
-                                list(permute_shape(shape))
-                                for shape, _ in input_types + result_types
-                            ]
-                            combinations: List[Tuple[Tuple[int, ...], ...]] = list(
-                                product(*combinations)
-                            )
-                            sub_mod_texts: List[str] = []
-                            for combination in combinations:
-                                for idx, layout in enumerate(combination):
-                                    kernel.attributes[
-                                        f"fluidml.{idx}"
-                                    ] = iree.compiler.ir.Attribute.parse(
-                                        f"array<i64: {', '.join([str(dim) for dim in layout])}>"
-                                    )
-                                sub_mod_text: str = str(sub_mod)
-                                if self._profile_cache is not None:
-                                    sub_mod_path: str = os.path.join(
-                                        self._profile_cache,
-                                        f'{kernel_name}_{"_".join("x".join(map(str,layout)) for layout in combination)}.mlir',
-                                    )
-                                    with open(sub_mod_path, "w") as f:
-                                        f.write(sub_mod_text)
-                                sub_mod_texts += [sub_mod_text]
-                            sub_mods: List[
-                                Tuple[Tuple[Tuple[int, ...], ...], Optional[bytes]]
-                            ] = list(
-                                zip(
-                                    combinations,
-                                    executor.map(
-                                        KernelProfiler._compile_sub_modules_wrapper,
-                                        map(
-                                            lambda sub_mod_text: (
-                                                sub_mod_text,
-                                                self._compile_commands,
-                                            ),
-                                            sub_mod_texts,
+                                with open(sub_mod_path, "w") as f:
+                                    f.write(sub_mod_text)
+                            sub_mod_texts += [sub_mod_text]
+                        sub_mods: List[
+                            Tuple[Tuple[Tuple[int, ...], ...], Optional[bytes]]
+                        ] = list(
+                            zip(
+                                combinations,
+                                executor.map(
+                                    KernelProfiler._compile_sub_modules_wrapper,
+                                    map(
+                                        lambda sub_mod_text: (
+                                            sub_mod_text,
+                                            self._compile_commands,
                                         ),
+                                        sub_mod_texts,
                                     ),
-                                )
+                                ),
                             )
-                            sub_mods: List[
-                                Tuple[Tuple[Tuple[int, ...], ...], bytes]
-                            ] = [
-                                (layouts, buffer)
-                                for layouts, buffer in sub_mods
-                                if buffer is not None
+                        )
+                        sub_mods: List[Tuple[Tuple[Tuple[int, ...], ...], bytes]] = [
+                            (layouts, buffer)
+                            for layouts, buffer in sub_mods
+                            if buffer is not None
+                        ]
+                        for layouts, buffer in sub_mods:
+                            config: iree.runtime.Config = iree.runtime.Config(
+                                self._driver
+                            )
+                            ctx: iree.runtime.SystemContext = (
+                                iree.runtime.SystemContext(config=config)
+                            )
+                            vm_module: iree.runtime.VmModule = (
+                                iree.runtime.VmModule.copy_buffer(ctx.instance, buffer)
+                            )
+                            ctx.add_vm_module(vm_module)
+                            inputs: List[np.ndarray] = [
+                                np.random.rand(*shape).astype(map_str_dtype(dtype))
+                                for shape, dtype in input_types
                             ]
-                            for layouts, buffer in sub_mods:
-                                config: iree.runtime.Config = iree.runtime.Config(
-                                    self._driver
-                                )
-                                ctx: iree.runtime.SystemContext = (
-                                    iree.runtime.SystemContext(config=config)
-                                )
-                                vm_module: iree.runtime.VmModule = (
-                                    iree.runtime.VmModule.copy_buffer(
-                                        ctx.instance, buffer
+                            f: Callable = ctx.modules.module[fname]
+                            for _ in range(self._times // 10):
+                                f(*inputs)
+                            exec_time: float = sys.float_info.max
+                            for _ in range(self._times):
+                                gc.disable()
+                                if self._driver == "cuda":
+                                    torch.cuda.synchronize()
+                                    start_event: torch.cuda.Event = torch.cuda.Event(
+                                        enable_timing=True
                                     )
-                                )
-                                ctx.add_vm_module(vm_module)
-                                inputs: List[np.ndarray] = [
-                                    np.random.rand(*shape).astype(map_str_dtype(dtype))
-                                    for shape, dtype in input_types
-                                ]
-                                f: Callable = ctx.modules.module[fname]
-                                for _ in range(self._times // 10):
+                                    end_event: torch.cuda.Event = torch.cuda.Event(
+                                        enable_timing=True
+                                    )
+                                    start_event.record()
+                                else:
+                                    start: int = time.perf_counter_ns()
+                                try:
                                     f(*inputs)
-                                exec_time: float = sys.float_info.max
-                                for _ in range(self._times):
-                                    gc.disable()
-                                    if self._driver == "cuda":
-                                        torch.cuda.synchronize()
-                                        start_event: torch.cuda.Event = (
-                                            torch.cuda.Event(enable_timing=True)
-                                        )
-                                        end_event: torch.cuda.Event = torch.cuda.Event(
-                                            enable_timing=True
-                                        )
-                                        start_event.record()
-                                    else:
-                                        start: int = time.perf_counter_ns()
-                                    try:
-                                        f(*inputs)
-                                    except Exception as e:
-                                        gc.enable()
-                                        raise e
-                                    if self._driver == "cuda":
-                                        end_event.record()
-                                        torch.cuda.synchronize()
-                                        cur_time: float = (
-                                            start_event.elapsed_time(end_event) * 1e6
-                                        )
-                                    else:
-                                        end: int = time.perf_counter_ns()
-                                        cur_time: float = (end - start) * 1.0
+                                except Exception as e:
                                     gc.enable()
-                                    exec_time = min(exec_time, cur_time)
-                                kstat[kernel_name, layouts] = exec_time
+                                    raise e
+                                if self._driver == "cuda":
+                                    end_event.record()
+                                    torch.cuda.synchronize()
+                                    cur_time: float = (
+                                        start_event.elapsed_time(end_event) * 1e6
+                                    )
+                                else:
+                                    end: int = time.perf_counter_ns()
+                                    cur_time: float = (end - start) * 1.0
+                                gc.enable()
+                                exec_time = min(exec_time, cur_time)
+                            kstat[kernel_name, layouts] = exec_time
         return kstat
 
     @staticmethod
