@@ -1,20 +1,19 @@
 import concurrent.futures
+import cuda.bindings.runtime
 import gc
 import multiprocessing
 import iree.compiler.ir
 import iree.compiler.dialects.flow
 import iree.compiler.dialects.func
-import iree.compiler.dialects.hal
 import iree.compiler.dialects.util
 import iree.runtime
 import numpy as np
 import os
 import sys
 import time
-import torch
 
 from itertools import product
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 from ..utils.kstat import KStat
@@ -163,14 +162,25 @@ class KernelProfiler(Profiler):
                             for _ in range(self._times):
                                 gc.disable()
                                 if self._driver == "cuda":
-                                    torch.cuda.synchronize()
-                                    start_event: torch.cuda.Event = torch.cuda.Event(
-                                        enable_timing=True
+                                    (
+                                        error,
+                                        start_event,
+                                    ) = cuda.bindings.runtime.cudaEventCreate()
+                                    assert (
+                                        error
+                                        == cuda.bindings.runtime.cudaError_t.cudaSuccess
+                                    ), f"cudaEventCreate failed: {error}"
+                                    (
+                                        error,
+                                        end_event,
+                                    ) = cuda.bindings.runtime.cudaEventCreate()
+                                    assert (
+                                        error
+                                        == cuda.bindings.runtime.cudaError_t.cudaSuccess
+                                    ), f"cudaEventCreate failed: {error}"
+                                    cuda.bindings.runtime.cudaEventRecord(
+                                        start_event, 0
                                     )
-                                    end_event: torch.cuda.Event = torch.cuda.Event(
-                                        enable_timing=True
-                                    )
-                                    start_event.record()
                                 else:
                                     start: int = time.perf_counter_ns()
                                 try:
@@ -179,11 +189,33 @@ class KernelProfiler(Profiler):
                                     gc.enable()
                                     raise e
                                 if self._driver == "cuda":
-                                    end_event.record()
-                                    torch.cuda.synchronize()
-                                    cur_time: float = (
-                                        start_event.elapsed_time(end_event) * 1e6
+                                    (error,) = cuda.bindings.runtime.cudaEventRecord(
+                                        end_event, 0
                                     )
+                                    assert (
+                                        error
+                                        == cuda.bindings.runtime.cudaError_t.cudaSuccess
+                                    ), f"cudaEventRecord failed: {error}"
+                                    (
+                                        error,
+                                    ) = cuda.bindings.runtime.cudaEventSynchronize(
+                                        end_event
+                                    )
+                                    assert (
+                                        error
+                                        == cuda.bindings.runtime.cudaError_t.cudaSuccess
+                                    ), f"cudaEventSynchronize failed: {error}"
+                                    (
+                                        error,
+                                        cur_time,
+                                    ) = cuda.bindings.runtime.cudaEventElapsedTime(
+                                        start_event, end_event
+                                    )
+                                    assert (
+                                        error
+                                        == cuda.bindings.runtime.cudaError_t.cudaSuccess
+                                    ), f"cudaEventElapsedTime failed: {error}"
+                                    cur_time = cur_time * 1e6
                                 else:
                                     end: int = time.perf_counter_ns()
                                     cur_time: float = (end - start) * 1.0

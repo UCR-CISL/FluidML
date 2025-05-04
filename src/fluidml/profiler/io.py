@@ -1,3 +1,4 @@
+import cuda.bindings.runtime
 import gc
 import iree.compiler.dialects.flow
 import iree.compiler.dialects.func
@@ -8,8 +9,6 @@ import iree.runtime
 import numpy as np
 import sys
 import time
-# TODO: can we replace torch with cuda python bindings?
-import torch
 
 from typing import Any, Callable, Dict, List, Optional
 
@@ -101,25 +100,41 @@ class IOProfiler(Profiler):
                 for _ in range(self._times):
                     gc.disable()
                     if self._driver == "cuda":
-                        torch.cuda.synchronize()
-                        start_event: torch.cuda.Event = torch.cuda.Event(
-                            enable_timing=True
-                        )
-                        end_event: torch.cuda.Event = torch.cuda.Event(
-                            enable_timing=True
-                        )
-                        start_event.record()
+                        error, start_event = cuda.bindings.runtime.cudaEventCreate()
+                        assert (
+                            error == cuda.bindings.runtime.cudaError_t.cudaSuccess
+                        ), f"cudaEventCreate failed: {error}"
+                        error, end_event = cuda.bindings.runtime.cudaEventCreate()
+                        assert (
+                            error == cuda.bindings.runtime.cudaError_t.cudaSuccess
+                        ), f"cudaEventCreate failed: {error}"
+                        cuda.bindings.runtime.cudaEventRecord(start_event, 0)
                     else:
                         start: int = time.perf_counter_ns()
                     try:
                         f(*inputs)
                     except Exception as e:
                         gc.enable()
+                        if self._driver == "cuda":
+                            cuda.bindings.runtime.cudaEventDestroy(start_event)
+                            cuda.bindings.runtime.cudaEventDestroy(end_event)
                         raise e
                     if self._driver == "cuda":
-                        end_event.record()
-                        torch.cuda.synchronize()
-                        cur_time: float = start_event.elapsed_time(end_event) * 1e6
+                        (error,) = cuda.bindings.runtime.cudaEventRecord(end_event, 0)
+                        assert (
+                            error == cuda.bindings.runtime.cudaError_t.cudaSuccess
+                        ), f"cudaEventRecord failed: {error}"
+                        (error,) = cuda.bindings.runtime.cudaEventSynchronize(end_event)
+                        assert (
+                            error == cuda.bindings.runtime.cudaError_t.cudaSuccess
+                        ), f"cudaEventSynchronize failed: {error}"
+                        error, cur_time = cuda.bindings.runtime.cudaEventElapsedTime(
+                            start_event, end_event
+                        )
+                        assert (
+                            error == cuda.bindings.runtime.cudaError_t.cudaSuccess
+                        ), f"cudaEventElapsedTime failed: {error}"
+                        cur_time = cur_time * 1e6
                     else:
                         end: int = time.perf_counter_ns()
                         cur_time: float = (end - start) * 1.0
