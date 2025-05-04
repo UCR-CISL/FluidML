@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import pickle
+import json
 
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .stat import Stat
 
@@ -29,5 +29,13 @@ class IOStat(Stat):
     def set(self, key: str, value: float) -> None:
         self._stat[key] = value
 
+    @classmethod
+    def build(cls, f) -> IOStat:
+        result: Dict[str, float] = {key: value for key, value in json.load(f)}
+        return cls(result)
+
     def dump(self, f) -> None:
-        pickle.dump(self._stat, f)
+        data: List[List[str, float]] = [
+            [key, value] for key, value in self._stat.items()
+        ]
+        json.dump(data, f)

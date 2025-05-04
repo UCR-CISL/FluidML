@@ -24,7 +24,7 @@ def main():
     output: str = args.output
     with open(filename, "r") as f:
         mod: str = f.read()
-    with open(schedule, "rb") as f:
+    with open(schedule, "r") as f:
         schedule: Schedule = Schedule.build(f)
     generator: Generator = Generator()
     mod: str = generator.run(mod, schedule)

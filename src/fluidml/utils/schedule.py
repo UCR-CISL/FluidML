@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import pickle
+import json
 
 from collections import Counter, defaultdict
 from typing import BinaryIO, Dict, Iterator, List, Tuple
@@ -24,11 +24,16 @@ class Schedule(object):
 
     @staticmethod
     def build(f: BinaryIO) -> Schedule:
-        schedule: Dict[str, Tuple[int, ...]] = pickle.load(f)
-        return Schedule(schedule)
+        data: Dict[str, Tuple[int, ...]] = {
+            key: tuple(value) for key, value in json.load(f)
+        }
+        return Schedule(data)
 
     def dump(self, f: BinaryIO) -> None:
-        pickle.dump(self._schedule, f)
+        data: List[List[str, Tuple[int, ...]]] = [
+            [key, list(value)] for key, value in self._schedule.items()
+        ]
+        json.dump(data, f)
 
     @staticmethod
     def merge(schedules: Iterator["Schedule"]) -> Schedule:

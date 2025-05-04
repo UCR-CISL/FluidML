@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pickle
-
 from abc import abstractmethod
 from typing import Any, BinaryIO, Dict, Iterator, Tuple, Union
 
@@ -24,11 +22,6 @@ class Stat(object):
         value: Union[float, Dict[Tuple[Tuple[int, ...], ...], float]],
     ) -> None:
         self.set(key, value)
-
-    @classmethod
-    def build(cls, f: BinaryIO) -> Stat:
-        stat = pickle.load(f)
-        return cls(stat)
 
     @abstractmethod
     def contains(self, key: Any) -> bool:

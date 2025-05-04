@@ -34,12 +34,12 @@ def main():
     with open(filename, "r") as f:
         mod: str = f.read()
     kstatf: str = args.kstat
-    with open(kstatf, "rb") as f:
+    with open(kstatf, "r") as f:
         kstat: KStat = KStat.build(f)
     output: Optional[str] = args.output
     analyzer: Analyzer = Analyzer()
     schedule: Schedule = analyzer.run(mod, kstat)
-    with open(output, "wb") as f:
+    with open(output, "w") as f:
         schedule.dump(f)
 
 

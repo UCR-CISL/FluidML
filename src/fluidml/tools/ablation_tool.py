@@ -30,9 +30,9 @@ def main():
     output: str = args.output
     with open(filename, "r") as f:
         mod: str = f.read()
-    with open(kstat, "rb") as f:
+    with open(kstat, "r") as f:
         kstat: KStat = KStat.build(f)
-    with open(schedule, "rb") as f:
+    with open(schedule, "r") as f:
         schedule: Schedule = Schedule.build(f)
     ablation: Ablation = Ablation.build(mod, kstat, schedule)
     with open(output, "w") as f:

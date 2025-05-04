@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import pickle
+import json
 
-from collections import defaultdict
-from typing import Any, BinaryIO, Dict, Optional, Tuple, Union
+from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
 from .stat import Stat
 
@@ -17,9 +16,7 @@ class KStat(Stat):
     ) -> KStat:
         super().__init__(*args, **kwargs)
         if result is None:
-            self._stat: Dict[
-                str, Dict[Tuple[Tuple[int, ...], ...], float]
-            ] = defaultdict(dict)
+            self._stat: Dict[str, Dict[Tuple[Tuple[int, ...], ...], float]] = {}
         else:
             self._stat: Dict[str, Dict[Tuple[Tuple[int, ...], ...], float]] = result
 
@@ -64,7 +61,9 @@ class KStat(Stat):
             assert isinstance(kernel, str)
             assert all(isinstance(axis, tuple) for axis in axes)
             assert all(isinstance(dim, int) for axis in axes for dim in axis)
-            self._stat[kernel][axes] = value
+            table: Dict[Tuple[Tuple[int, ...], ...], float] = self._stat.get(kernel, {})
+            table[axes] = value
+            self._stat[kernel] = table
         else:
             raise TypeError(
                 f"{self.__class__.__name__} received unexpected key type {type(key)} and value type {type(value)}."
@@ -74,5 +73,17 @@ class KStat(Stat):
     def result(self) -> Dict[str, Dict[Tuple[Tuple[int, ...], ...], float]]:
         return self._stat
 
+    @classmethod
+    def build(cls, f: BinaryIO) -> KStat:
+        data: Dict[str, Dict[Tuple[Tuple[int, ...], ...], float]] = {
+            k0: {tuple(tuple(e for e in t) for t in k1): v1 for k1, v1 in v0}
+            for k0, v0 in json.load(f)
+        }
+        return cls(data)
+
     def dump(self, f: BinaryIO) -> None:
-        pickle.dump(self._stat, f)
+        data: List[List[str, List[List[List[List[int]], float]]]] = [
+            [k0, [[[[e for e in t] for t in k1], v1] for k1, v1 in v0.items()]]
+            for k0, v0 in self._stat.items()
+        ]
+        json.dump(data, f)

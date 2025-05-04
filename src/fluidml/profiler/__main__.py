@@ -92,7 +92,7 @@ def main():
     )
     result: KStat = profiler.run(mod)
     if output:
-        with open(output, "wb") as f:
+        with open(output, "w") as f:
             result.dump(f)
     else:
         result.dump(sys.stdout)
