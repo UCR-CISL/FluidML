@@ -3,7 +3,7 @@ import iree.compiler.ir
 
 from typing import List
 
-from ..utils.kstat import KStat
+from ..utils.stat.kstat import KStat
 from ..utils.schedule import Schedule, ScheduleGroup
 from .scope import Graph
 from .wrapper import OpWrapper

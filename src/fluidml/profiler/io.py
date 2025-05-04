@@ -13,7 +13,7 @@ import time
 from typing import Any, Callable, Dict, List, Optional
 
 from ..utils.utils import map_str_dtype
-from ..utils.kstat import KStat
+from ..utils.stat.iostat import IOStat
 from .profiler import Profiler
 
 
@@ -40,7 +40,7 @@ class IOProfiler(Profiler):
             **kwargs,
         )
 
-    def run(self, mod: str) -> "KStat":
+    def run(self, mod: str) -> IOStat:
         with iree.compiler.ir.Context():
             mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(mod)
             for operation in mod.body.operations:
@@ -81,10 +81,12 @@ class IOProfiler(Profiler):
             ctx.instance, buffer
         )
         ctx.add_vm_module(vm_module)
+        iostat: IOStat = IOStat()
         for operation in mod.body.operations:
             if isinstance(
                 operation.opview, iree.compiler.dialects.util.FuncOp
             ) and operation.sym_name.value.endswith("_benchmark"):
+                kernel_name: str = operation.sym_name.value.removesuffix("_benchmark")
                 [block] = operation.body.blocks
                 inputs: List[np.ndarray] = [
                     np.random.rand(*op.target.type.shape).astype(
@@ -140,5 +142,5 @@ class IOProfiler(Profiler):
                         cur_time: float = (end - start) * 1.0
                     gc.enable()
                     exec_time = min(exec_time, cur_time)
-        # TODO: rewrite `KStat` to support `IOProfiler`
-        return KStat()
+                iostat[kernel_name] = exec_time
+        return iostat

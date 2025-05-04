@@ -8,7 +8,7 @@ from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 import iree.compiler.dialects
 
-from ...utils.kstat import KStat
+from ...utils.stat.kstat import KStat
 from ...utils.utils import permute_shape
 from ...utils.schedule import Schedule, ScheduleGroup
 from ..wrapper import DummyValue, OpWrapper

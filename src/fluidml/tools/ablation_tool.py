@@ -1,6 +1,6 @@
 import argparse
 
-from ..utils.kstat import KStat
+from ..utils.stat.kstat import KStat
 from ..utils.schedule import Schedule
 from .ablation import Ablation
 

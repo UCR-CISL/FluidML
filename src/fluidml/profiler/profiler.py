@@ -1,5 +1,4 @@
 import iree.compiler.dialects.flow
-import iree.compiler.dialects.func
 import iree.compiler.dialects.hal
 import iree.compiler.dialects.util
 import iree.compiler.ir
@@ -7,7 +6,7 @@ import iree.compiler.ir
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Union
 
-from ..utils.kstat import KStat
+from ..utils.stat.stat import Stat
 from .util import get_signature
 
 
@@ -37,7 +36,7 @@ class Profiler(object):
         self._compile_commands: Dict[str, Any] = compile_options
 
     @abstractmethod
-    def run(self, mod: str) -> KStat:
+    def run(self, mod: str) -> Stat:
         raise NotImplementedError(
             f"Profiler.run() must be implemented in {self.__class__.__name__} class"
         )

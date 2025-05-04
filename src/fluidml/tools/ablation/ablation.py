@@ -8,7 +8,7 @@ import pandas
 from itertools import chain
 from typing import BinaryIO, Dict, List, TextIO, Tuple
 
-from ...utils.kstat import KStat
+from ...utils.stat.kstat import KStat
 from ...utils.schedule import Schedule
 
 

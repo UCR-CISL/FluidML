@@ -4,7 +4,7 @@ import sys
 
 from typing import Any, Dict, Optional, TypeVar
 
-from ..utils.kstat import KStat
+from ..utils.stat.kstat import KStat
 from .io import IOProfiler
 from .kernel import KernelProfiler
 from .profiler import Profiler
