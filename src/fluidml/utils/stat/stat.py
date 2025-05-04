@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pickle
 
 from abc import abstractmethod
@@ -5,7 +7,7 @@ from typing import Any, BinaryIO, Dict, Iterator, Tuple, Union
 
 
 class Stat(object):
-    def __init__(self, *args, **kwargs) -> "Stat":
+    def __init__(self, *args, **kwargs) -> Stat:
         super().__init__(*args, **kwargs)
 
     def __contains__(self, key: Any) -> bool:
@@ -24,7 +26,7 @@ class Stat(object):
         self.set(key, value)
 
     @classmethod
-    def build(cls, f: BinaryIO) -> "Stat":
+    def build(cls, f: BinaryIO) -> Stat:
         stat = pickle.load(f)
         return cls(stat)
 

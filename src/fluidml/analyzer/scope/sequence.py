@@ -1,12 +1,11 @@
-import iree.compiler.dialects.arith
+from __future__ import annotations
+
 import iree.compiler.ir
 import sys
 
 from collections import Counter, defaultdict
 from itertools import product
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
-
-import iree.compiler.dialects
 
 from ...utils.stat.kstat import KStat
 from ...utils.utils import permute_shape
@@ -16,9 +15,7 @@ from .scope import Scope
 
 
 class Sequence(Scope):
-    def __init__(
-        self, wrappers: Iterator[OpWrapper] = [], *args, **kwargs
-    ) -> "Sequence":
+    def __init__(self, wrappers: Iterator[OpWrapper] = [], *args, **kwargs) -> Sequence:
         super().__init__(*args, **kwargs)
         self._wrappers: List[OpWrapper] = [
             OpWrapper(wrapper._op, self) for wrapper in wrappers
@@ -29,7 +26,7 @@ class Sequence(Scope):
 
     def append(
         self, op: Union[iree.compiler.ir.Operation, iree.compiler.ir.OpView, OpWrapper]
-    ) -> "Sequence":
+    ) -> Sequence:
         self._wrappers += [OpWrapper(op, self)]
         return self
 
@@ -62,13 +59,13 @@ class Sequence(Scope):
     def prepend(
         self,
         wrapper: Union[iree.compiler.ir.Operation, iree.compiler.ir.OpView, OpWrapper],
-    ) -> "Sequence":
+    ) -> Sequence:
         self._wrappers = [OpWrapper(wrapper._op, self)] + self._wrappers
         return self
 
     def put(
         self, op: Union[iree.compiler.ir.Operation, iree.compiler.ir.OpView, OpWrapper]
-    ) -> "Sequence":
+    ) -> Sequence:
         return self.append(op)
 
     def schedule(self, kstat: KStat) -> ScheduleGroup:

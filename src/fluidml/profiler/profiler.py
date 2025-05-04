@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import iree.compiler.dialects.flow
 import iree.compiler.dialects.hal
 import iree.compiler.dialects.util
@@ -21,7 +23,7 @@ class Profiler(object):
         compile_options: Dict[str, Any],
         *args,
         **kwargs,
-    ) -> "Profiler":
+    ) -> Profiler:
         super().__init__(*args, **kwargs)
         self._times: int = times
         self._worker_num: int = worker_num

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pickle
 
 from typing import Dict, Optional
@@ -8,7 +10,7 @@ from .stat import Stat
 class IOStat(Stat):
     def __init__(
         self, result: Optional[Dict[str, float]] = None, *args, **kwargs
-    ) -> "IOStat":
+    ) -> IOStat:
         super().__init__(*args, **kwargs)
         if result is None:
             self._stat: Dict[str, float] = {}

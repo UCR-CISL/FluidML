@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import iree.compiler.ir
 
 from abc import abstractmethod
@@ -7,7 +9,7 @@ from ..wrapper import OpWrapper
 
 
 class Scope(object):
-    def __init__(self, *args, **kwargs) -> "Scope":
+    def __init__(self, *args, **kwargs) -> Scope:
         super().__init__(*args, **kwargs)
 
     def __contains__(
@@ -15,7 +17,7 @@ class Scope(object):
     ) -> bool:
         return self.contains(op)
 
-    def __iadd__(self, op: OpWrapper) -> "Scope":
+    def __iadd__(self, op: OpWrapper) -> Scope:
         return self.put(op)
 
     def __iter__(self) -> Iterator[OpWrapper]:
@@ -154,7 +156,7 @@ class Scope(object):
         )
 
     @abstractmethod
-    def put(self, op: OpWrapper) -> "Scope":
+    def put(self, op: OpWrapper) -> Scope:
         raise NotImplementedError(
             f"Method `put` is not implemented for {self.__class__.__name__}."
         )

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pickle
 
 from collections import Counter, defaultdict
@@ -7,7 +9,7 @@ from typing import BinaryIO, Dict, Iterator, List, Tuple
 class Schedule(object):
     def __init__(
         self, schedule: Dict[str, Tuple[int, ...]], *args, **kwargs
-    ) -> "Schedule":
+    ) -> Schedule:
         super().__init__(*args, **kwargs)
         self._schedule: Dict[str, Tuple[int, ...]] = schedule
 
@@ -21,7 +23,7 @@ class Schedule(object):
         return f"Schedule(\n{self._schedule}\n)"
 
     @staticmethod
-    def build(f: BinaryIO) -> "Schedule":
+    def build(f: BinaryIO) -> Schedule:
         schedule: Dict[str, Tuple[int, ...]] = pickle.load(f)
         return Schedule(schedule)
 
@@ -29,7 +31,7 @@ class Schedule(object):
         pickle.dump(self._schedule, f)
 
     @staticmethod
-    def merge(schedules: Iterator["Schedule"]) -> "Schedule":
+    def merge(schedules: Iterator["Schedule"]) -> Schedule:
         table: Dict[str, List[Tuple[int, ...]]] = defaultdict(list)
         for schedule in schedules:
             for key, value in schedule._schedule.items():
@@ -45,11 +47,11 @@ class Schedule(object):
 class ScheduleGroup(object):
     def __init__(
         self, schedule_group: Iterator[Schedule] = [], *args, **kwargs
-    ) -> "ScheduleGroup":
+    ) -> ScheduleGroup:
         super().__init__(*args, **kwargs)
         self._schedule_group: List[Schedule] = [*schedule_group]
 
-    def __iadd__(self, schedule: Schedule) -> "ScheduleGroup":
+    def __iadd__(self, schedule: Schedule) -> ScheduleGroup:
         self._schedule_group += [schedule]
         return self
 
@@ -57,7 +59,7 @@ class ScheduleGroup(object):
         for schedule in self._schedule_group:
             yield schedule
 
-    def __or__(self, value: "ScheduleGroup") -> "ScheduleGroup":
+    def __or__(self, value: ScheduleGroup) -> ScheduleGroup:
         return ScheduleGroup(self._schedule_group + value._schedule_group)
 
     def __str__(self) -> str:

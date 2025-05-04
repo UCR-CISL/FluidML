@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import iree.compiler.dialects.flow
 import iree.compiler.dialects.util
 import iree.compiler.ir
@@ -12,7 +14,7 @@ from .ktable import KTable
 
 
 class Generator(object):
-    def __init__(self, *args, **kwargs) -> "Generator":
+    def __init__(self, *args, **kwargs) -> Generator:
         super().__init__(*args, **kwargs)
 
     def run(self, mod: str, schedule: Schedule) -> str:

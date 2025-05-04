@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import iree.compiler.ir
 
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
@@ -15,7 +17,7 @@ class Graph(Scope):
         ] = [],
         *args,
         **kwargs,
-    ) -> "Graph":
+    ) -> Graph:
         super().__init__(*args, **kwargs)
         self._wrappers: Set[OpWrapper] = {OpWrapper(op, self) for op in ops}
 
@@ -77,7 +79,7 @@ class Graph(Scope):
     def put(
         self,
         op: Union[iree.compiler.ir.Operation, iree.compiler.ir.OpView, OpWrapper],
-    ) -> "Graph":
+    ) -> Graph:
         self._wrappers = {OpWrapper(op, self)} | self._wrappers
         return self
 

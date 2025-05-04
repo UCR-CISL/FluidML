@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pickle
 
 from collections import defaultdict
@@ -12,7 +14,7 @@ class KStat(Stat):
         result: Optional[Dict[str, Dict[Tuple[Tuple[int, ...], ...], float]]] = None,
         *args,
         **kwargs,
-    ) -> "KStat":
+    ) -> KStat:
         super().__init__(*args, **kwargs)
         if result is None:
             self._stat: Dict[

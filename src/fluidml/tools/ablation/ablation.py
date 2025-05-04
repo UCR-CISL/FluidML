@@ -1,10 +1,12 @@
-from collections import defaultdict
+from __future__ import annotations
+
 import iree.compiler.dialects.flow
 import iree.compiler.dialects.util
 import json
 import matplotlib.pyplot as plt
 import pandas
 
+from collections import defaultdict
 from itertools import chain
 from typing import BinaryIO, Dict, List, TextIO, Tuple
 
@@ -13,7 +15,7 @@ from ...utils.schedule import Schedule
 
 
 class Ablation(object):
-    def __init__(self, time_map, *args, **kwargs) -> "Ablation":
+    def __init__(self, time_map, *args, **kwargs) -> Ablation:
         super().__init__(*args, **kwargs)
         self._time_map: Dict[str, Tuple[float, float]] = time_map
 
@@ -61,7 +63,7 @@ class Ablation(object):
         mod: str,
         kstat: KStat,
         schedule: Schedule,
-    ) -> "Ablation":
+    ) -> Ablation:
         """Build the ablation tool."""
         with iree.compiler.ir.Context():
             mod: iree.compiler.ir.Module = iree.compiler.ir.Module.parse(mod)
@@ -112,6 +114,6 @@ class Ablation(object):
             return Ablation(time_map)
 
     @staticmethod
-    def from_(f: TextIO) -> "Ablation":
+    def from_(f: TextIO) -> Ablation:
         time_map: Dict[str, Tuple[float, float]] = json.load(f).get("time_map", {})
         return Ablation(time_map)

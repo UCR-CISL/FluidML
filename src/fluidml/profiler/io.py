@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import cuda.bindings.runtime
 import gc
 import iree.compiler.dialects.flow
@@ -28,7 +30,7 @@ class IOProfiler(Profiler):
         compile_options: Dict[str, Any],
         *args,
         **kwargs,
-    ) -> "IOProfiler":
+    ) -> IOProfiler:
         super().__init__(
             times,
             worker_num,

@@ -1,14 +1,14 @@
+from __future__ import annotations
+
 import iree.compiler.ir
 import iree.compiler.dialects.flow
-import iree.compiler.dialects.func
-import iree.compiler.dialects.util
 
 from collections import defaultdict
 from typing import Dict, Iterator, Optional, Tuple
 
 
 class KTable(object):
-    def __init__(self, mod: iree.compiler.ir.Module, *args, **kwargs) -> "KTable":
+    def __init__(self, mod: iree.compiler.ir.Module, *args, **kwargs) -> KTable:
         super().__init__(*args, **kwargs)
         self._mod: iree.compiler.ir.Module = mod
         self._table: Dict[str, Dict[str, iree.compiler.ir.ArrayAttr]] = defaultdict(

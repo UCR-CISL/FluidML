@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import iree.compiler.dialects.util
 import iree.compiler.ir
 
@@ -10,7 +12,7 @@ from .wrapper import OpWrapper
 
 
 class Analyzer(object):
-    def __init__(self, *args, **kwargs) -> "Analyzer":
+    def __init__(self, *args, **kwargs) -> Analyzer:
         super().__init__(*args, **kwargs)
 
     def run(self, mod: str, kstat: KStat) -> Schedule:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import concurrent.futures
 import cuda.bindings.runtime
 import gc
@@ -33,7 +35,7 @@ class KernelProfiler(Profiler):
         compile_options: Dict[str, Any],
         *args,
         **kwargs,
-    ) -> "KernelProfiler":
+    ) -> KernelProfiler:
         super().__init__(
             times,
             worker_num,
