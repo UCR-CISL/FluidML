@@ -88,13 +88,13 @@ class KStat(Stat):
     def build(cls, f: BinaryIO) -> KStat:
         data: Dict[str, Dict[Tuple[Tuple[int, ...], ...], float]] = {
             k0: {tuple(tuple(e for e in t) for t in k1): v1 for k1, v1 in v0}
-            for k0, v0 in json.load(f)
+            for k0, v0 in json.load(f).items()
         }
         return cls(data)
 
     def dump(self, f: BinaryIO) -> None:
-        data: List[List[str, List[List[List[List[int]], float]]]] = [
-            [k0, [[[[e for e in t] for t in k1], v1] for k1, v1 in v0.items()]]
+        data: List[List[str, List[List[List[List[int]], float]]]] = {
+            k0: [[[[e for e in t] for t in k1], v1] for k1, v1 in v0.items()]
             for k0, v0 in self._stat.items()
-        ]
+        }
         json.dump(data, f)
