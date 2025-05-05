@@ -31,11 +31,7 @@ class IOStat(Stat):
 
     @classmethod
     def build(cls, f) -> IOStat:
-        result: Dict[str, float] = {key: value for key, value in json.load(f)}
-        return cls(result)
+        return cls(json.load(f))
 
     def dump(self, f) -> None:
-        data: List[List[str, float]] = [
-            [key, value] for key, value in self._stat.items()
-        ]
-        json.dump(data, f)
+        json.dump(self._stat, f)

@@ -25,14 +25,14 @@ class Schedule(object):
     @staticmethod
     def build(f: BinaryIO) -> Schedule:
         data: Dict[str, Tuple[int, ...]] = {
-            key: tuple(value) for key, value in json.load(f)
+            key: tuple(value) for key, value in json.load(f).items()
         }
         return Schedule(data)
 
     def dump(self, f: BinaryIO) -> None:
-        data: List[List[str, Tuple[int, ...]]] = [
-            [key, list(value)] for key, value in self._schedule.items()
-        ]
+        data: List[List[str, Tuple[int, ...]]] = {
+            key: list(value) for key, value in self._schedule.items()
+        }
         json.dump(data, f)
 
     @staticmethod
