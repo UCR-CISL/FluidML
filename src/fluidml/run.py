@@ -5,7 +5,7 @@ from typing import Optional, Union
 from .analyzer import Analyzer
 from .generator import Generator
 from .profiler import KernelProfiler
-from .utils.stat.kstat import KStat
+from .utils.stat import KStat
 from .utils.schedule import Schedule
 
 times: int = int(os.getenv("FLUIDML_TIME", 50))

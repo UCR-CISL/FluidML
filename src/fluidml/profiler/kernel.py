@@ -18,7 +18,7 @@ from itertools import product
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
-from ..utils.stat.kstat import KStat
+from ..utils.stat import KStat
 from ..utils.utils import permute_shape, map_str_dtype
 from .profiler import Profiler
 from .util import get_signature

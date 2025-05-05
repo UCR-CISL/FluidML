@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import copy
 import json
 
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
+from .iostat import IOStat
 from .stat import Stat
 
 
@@ -68,6 +70,15 @@ class KStat(Stat):
             raise TypeError(
                 f"{self.__class__.__name__} received unexpected key type {type(key)} and value type {type(value)}."
             )
+
+    def reduce(self, iostat: IOStat) -> KStat:
+        stat: Dict[str, Dict[Tuple[Tuple[int, ...], ...], float]] = copy.deepcopy(
+            self._stat
+        )
+        for kernel, axes in stat.items():
+            for axis, value in axes.items():
+                stat[kernel][axis] = max(0, value - iostat[kernel])
+        return KStat(stat)
 
     @property
     def result(self) -> Dict[str, Dict[Tuple[Tuple[int, ...], ...], float]]:

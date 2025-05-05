@@ -2,7 +2,7 @@ import argparse
 
 from typing import Optional
 
-from ..utils.stat.kstat import KStat
+from ..utils.stat import KStat
 from ..utils.schedule import Schedule
 from .analyzer import Analyzer
 

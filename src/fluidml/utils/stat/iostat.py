@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from .stat import Stat
 
