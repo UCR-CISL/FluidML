@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import iree.compiler.ir
 
-from ..utils.stat import KStat
-from ..utils.schedule import Schedule
+from ..utils import KStat, Schedule, is_default_layout
 from .analyzer import Analyzer
 from .scope.graph import Graph
 from .wrapper import OpWrapper
@@ -34,12 +33,7 @@ class GreedyAnalyzer(Analyzer):
                     entry: str = wrapper.entry
                     ktable: Dict[Tuple[Tuple[int, ...], ...], float] = kstat[entry]
                     [(default_layout, default_timecost)] = [
-                        (k, v)
-                        for k, v in ktable.items()
-                        if all(
-                            shape == tuple(i for i, _ in enumerate(shape))
-                            for shape in k
-                        )
+                        (k, v) for k, v in ktable.items() if is_default_layout(k)
                     ]
                     (best_layout, best_timecost) = min(
                         ktable.items(), key=lambda x: x[1]

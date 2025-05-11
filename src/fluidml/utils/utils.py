@@ -15,6 +15,10 @@ __DTYPE_MAP: Dict[str, np.dtype] = {
 }
 
 
+def is_default_layout(layouts: Iterator[Tuple[int, ...]]) -> bool:
+    return all(layout == tuple(i for i, _ in enumerate(layout)) for layout in layouts)
+
+
 def map_str_dtype(dtype: str) -> np.dtype:
     return __DTYPE_MAP[dtype]
 

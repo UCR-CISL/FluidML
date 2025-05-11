@@ -2,8 +2,7 @@ import argparse
 
 from typing import Optional, TypeVar
 
-from ..utils.stat import KStat
-from ..utils.schedule import Schedule
+from ..utils import KStat, Schedule
 from .analyzer import Analyzer
 from .dp import DynamicProgramAnalyzer
 from .greedy import GreedyAnalyzer

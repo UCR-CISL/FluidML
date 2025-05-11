@@ -8,8 +8,7 @@ import numpy as np
 from itertools import chain
 from typing import List, Tuple
 
-from ..utils.schedule import Schedule
-from ..utils.utils import map_str_dtype
+from ..utils import Schedule, map_str_dtype
 from .ktable import KTable
 
 

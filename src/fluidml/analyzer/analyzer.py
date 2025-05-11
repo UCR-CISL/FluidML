@@ -4,8 +4,7 @@ import iree.compiler.dialects.util
 import iree.compiler.ir
 
 
-from ..utils.stat import KStat
-from ..utils.schedule import Schedule
+from ..utils import KStat, Schedule
 
 
 from abc import abstractmethod

@@ -14,8 +14,7 @@ import time
 
 from typing import Any, Callable, Dict, List, Optional
 
-from ..utils.utils import map_str_dtype
-from ..utils.stat import IOStat
+from ..utils import IOStat, map_str_dtype
 from .profiler import Profiler
 
 

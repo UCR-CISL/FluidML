@@ -7,9 +7,7 @@ from collections import Counter, defaultdict
 from itertools import product
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
-from ...utils.stat import KStat
-from ...utils.utils import permute_shape
-from ...utils.schedule import Schedule, ScheduleGroup
+from ...utils import KStat, Schedule, ScheduleGroup, permute_shape
 from ..wrapper import DummyValue, OpWrapper
 from .scope import Scope
 

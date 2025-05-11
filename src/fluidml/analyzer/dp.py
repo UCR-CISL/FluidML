@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import iree.compiler.ir
 
-from ..utils.stat import KStat
-from ..utils.schedule import Schedule, ScheduleGroup
+from ..utils import KStat, Schedule, ScheduleGroup
 from .analyzer import Analyzer
 from .scope import Graph
 from .wrapper import OpWrapper

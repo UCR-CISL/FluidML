@@ -5,8 +5,7 @@ from typing import Optional, Union
 from .analyzer import DynamicProgramAnalyzer
 from .generator import Generator
 from .profiler import KernelProfiler
-from .utils.stat import KStat
-from .utils.schedule import Schedule
+from .utils import KStat, Schedule
 
 times: int = int(os.getenv("FLUIDML_TIME", 50))
 worker_num: int = int(os.getenv("FLUIDML_WORKER_NUM", os.cpu_count()))

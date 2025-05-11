@@ -3,7 +3,7 @@ import os
 
 from typing import Any, Dict, Optional, TypeVar
 
-from ..utils.stat import IOStat, KStat, Stat
+from ..utils import IOStat, KStat, Stat
 from .io import IOProfiler
 from .kernel import KernelProfiler
 from .profiler import Profiler

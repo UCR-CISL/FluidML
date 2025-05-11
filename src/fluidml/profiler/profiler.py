@@ -8,7 +8,7 @@ import iree.compiler.ir
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Union
 
-from ..utils.stat.stat import Stat
+from ..utils import Stat
 from .util import get_signature
 
 
