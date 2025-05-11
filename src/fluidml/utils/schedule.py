@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 
 from collections import Counter, defaultdict
-from typing import BinaryIO, Dict, Iterator, List, Tuple
+from typing import BinaryIO, Dict, Iterator, List, Optional, Tuple
 
 
 class Schedule(object):
     def __init__(
-        self, schedule: Dict[str, Tuple[int, ...]], *args, **kwargs
+        self, schedule: Dict[str, Tuple[int, ...]] = {}, *args, **kwargs
     ) -> Schedule:
         super().__init__(*args, **kwargs)
         self._schedule: Dict[str, Tuple[int, ...]] = schedule

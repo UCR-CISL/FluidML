@@ -2,7 +2,7 @@ import os
 
 from typing import Optional, Union
 
-from .analyzer import Analyzer
+from .analyzer import DynamicProgramAnalyzer
 from .generator import Generator
 from .profiler import KernelProfiler
 from .utils.stat import KStat
@@ -25,7 +25,7 @@ def run(flow: Union[str, bytes], driver: str, **kwargs) -> str:
         times, worker_num, check_period, driver, profile_cache, kwargs
     )
     kstat: KStat = profiler.run(mod)
-    analyzer: Analyzer = Analyzer()
+    analyzer: DynamicProgramAnalyzer = DynamicProgramAnalyzer()
     schedule: Schedule = analyzer.run(mod, kstat)
     generator: Generator = Generator()
     return generator.run(mod, schedule)

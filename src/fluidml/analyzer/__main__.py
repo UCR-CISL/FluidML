@@ -1,13 +1,21 @@
 import argparse
 
-from typing import Optional
+from typing import Optional, TypeVar
 
 from ..utils.stat import KStat
 from ..utils.schedule import Schedule
 from .analyzer import Analyzer
+from .dp import DynamicProgramAnalyzer
+from .greedy import GreedyAnalyzer
+
+AnalyzerCls = TypeVar("AnalyzerCls", bound="Analyzer")
 
 
 def main():
+    dispatch_table: dict[str, AnalyzerCls] = {
+        "dp": DynamicProgramAnalyzer,
+        "greedy": GreedyAnalyzer,
+    }
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="analyzer for FluidML pipelines",
         allow_abbrev=True,
@@ -16,6 +24,12 @@ def main():
         "filename",
         type=str,
         help="path to the IREE flow module file",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=dispatch_table.keys(),
+        default="dp",
+        help="analyzer mode",
     )
     parser.add_argument(
         "--kstat",
@@ -37,7 +51,8 @@ def main():
     with open(kstatf, "r") as f:
         kstat: KStat = KStat.build(f)
     output: Optional[str] = args.output
-    analyzer: Analyzer = Analyzer()
+    cls: AnalyzerCls = dispatch_table[args.mode]
+    analyzer: Analyzer = cls()
     schedule: Schedule = analyzer.run(mod, kstat)
     with open(output, "w") as f:
         schedule.dump(f)
