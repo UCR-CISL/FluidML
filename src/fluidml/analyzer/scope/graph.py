@@ -4,6 +4,7 @@ import iree.compiler.ir
 
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
+from ...utils import KStat, is_default_layout
 from ..wrapper import OpWrapper
 from .scope import Scope
 from .sequence import Sequence
@@ -39,16 +40,16 @@ class Graph(Scope):
             assert graph.is_connected, f"Graph\n{graph}\nis not connected."
         return graphs
 
-    def pathify(self) -> List[Sequence]:
+    def pathify(self, kstat: Optional[KStat] = None) -> List[Sequence]:
         assert self.is_connected, f"Graph\n{self}\nis not connected."
-        dtable: Dict[OpWrapper, Tuple[Optional[OpWrapper], int]] = {}
+        dtable: Dict[OpWrapper, Tuple[Optional[OpWrapper], float]] = {}
         queue: List[OpWrapper] = [
             wrapper for wrapper in self._wrappers if wrapper.is_source
         ]
         while queue:
             wrapper: OpWrapper = queue.pop()
             if wrapper.is_source:
-                dtable[wrapper] = (None, 0)
+                dtable[wrapper] = (None, 0.0)
             else:
                 deps: List[OpWrapper] = wrapper.scope_prevs
                 if any(dep not in dtable for dep in deps):
@@ -56,7 +57,16 @@ class Graph(Scope):
                 prev, dist = max(
                     [(dep, dtable[dep][1]) for dep in deps], key=lambda x: x[1]
                 )
-                dtable[wrapper] = (prev, dist + 1)
+                if kstat and wrapper.schedule_layout:
+                    ktable: Dict[Tuple[Tuple[int, ...], ...], float] = kstat[
+                        wrapper.entry
+                    ]
+                    [(_, timecost)] = [
+                        (k, v) for k, v in ktable.items() if is_default_layout(k)
+                    ]
+                    dtable[wrapper] = (prev, dist + timecost)
+                else:
+                    dtable[wrapper] = (prev, dist + 1.0)
             for output in wrapper.scope_nexts:
                 if output not in dtable:
                     queue += [output]

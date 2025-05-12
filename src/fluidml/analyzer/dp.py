@@ -26,7 +26,7 @@ class DynamicProgramAnalyzer(Analyzer):
             graph: Graph = Graph(wrappers)
             group: ScheduleGroup = ScheduleGroup()
             for subgraph in graph.partitioned():
-                for seq in subgraph.pathify():
+                for seq in subgraph.pathify(kstat):
                     group |= seq.schedule(kstat)
             schedule: Schedule = group.merge()
             return schedule
