@@ -6,15 +6,17 @@ from typing import Any, Dict, Optional, TypeVar
 from ..utils import IOStat, KStat, Stat
 from .io import IOProfiler
 from .kernel import KernelProfiler
+from .pipeline import PipelineProfiler
 from .profiler import Profiler
 
-ProfilerCls = TypeVar("ProfilerCls", bound="Profiler")
+ProfilerCls = TypeVar("ProfilerCls", bound=Profiler)
 
 
 def main():
-    dispatch_table: Dict[str, Profiler] = {
-        "kernel": KernelProfiler,
+    dispatch_table: Dict[str, ProfilerCls] = {
         "io": IOProfiler,
+        "kernel": KernelProfiler,
+        "pipeline": PipelineProfiler,
     }
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="profiler for FluidML pipelines",
@@ -80,7 +82,7 @@ def main():
         "--mode",
         type=str,
         choices=dispatch_table.keys(),
-        required=True,
+        default="pipeline",
         help="mode for profiler",
     )
     profiler.add_argument(
