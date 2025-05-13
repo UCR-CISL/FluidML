@@ -19,8 +19,16 @@ class Schedule(object):
     def __getitem__(self, key: str) -> Tuple[int, ...]:
         return self._schedule[key]
 
+    def __setitem__(self, key: str, value: Tuple[int, ...]) -> None:
+        self._schedule[key] = value
+
     def __str__(self) -> str:
         return f"Schedule(\n{self._schedule}\n)"
+
+    def get(
+        self, key: str, default: Optional[Tuple[int, ...]] = None
+    ) -> Optional[Tuple[int, ...]]:
+        return self._schedule.get(key, default)
 
     @staticmethod
     def build(f: BinaryIO) -> Schedule:
