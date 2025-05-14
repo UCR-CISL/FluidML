@@ -34,7 +34,7 @@ class Graph(Scope):
         for wrapper in self._wrappers:
             yield wrapper
 
-    def partitioned(self) -> List["Graph"]:
+    def partitioned(self) -> List[Graph]:
         graphs: List[Graph] = self._partitioned()
         for graph in graphs:
             assert graph.is_connected, f"Graph\n{graph}\nis not connected."

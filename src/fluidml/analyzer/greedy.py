@@ -25,6 +25,12 @@ class GreedyAnalyzer(Analyzer):
             ]
             graph: Graph = Graph(wrappers)
             schedule: Schedule = Schedule()
+            for wrapper in graph.iter():
+                if wrapper.force_layout:
+                    for arg in wrapper.args:
+                        arg_name: str = arg.get_name()
+                        layout = tuple(range(len(arg.type.shape)))
+                        schedule[arg_name] = layout
             schedule_wrappers: Set[OpWrapper] = {
                 wrapper for wrapper in graph.iter() if wrapper.schedule_layout
             }
@@ -60,7 +66,7 @@ class GreedyAnalyzer(Analyzer):
         wrapper: OpWrapper,
         schedule: Schedule,
         ktable: Dict[Tuple[Tuple[int, ...], ...], float],
-    ) -> Tuple[Tuple[int, ...], float]:
+    ) -> Tuple[Tuple[Tuple[int, ...], ...], float]:
         assigned_layouts: Tuple[Optional[Tuple[int, ...]], ...] = tuple(
             v
             for _, v in sorted(

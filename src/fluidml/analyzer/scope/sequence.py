@@ -91,6 +91,14 @@ class Sequence(Scope):
                 if not isinstance(output, DummyValue)
                 else None
             )
+            input_key: Union[str, DummyValue] = (
+                input.get_name() if isinstance(input, iree.compiler.ir.Value) else input
+            )
+            output_key: Union[str, DummyValue] = (
+                output.get_name()
+                if isinstance(output, iree.compiler.ir.Value)
+                else output
+            )
             if wrapper.schedule_layout:
                 assert (
                     input_idx is not None
@@ -133,13 +141,19 @@ class Sequence(Scope):
                             layouts[input_idx] == input_layout
                             and layouts[output_idx] == output_layout
                         ):
-                            assert len(layouts) <= len(
-                                wrapper.args
-                            ), f"The size of layouts {layouts} is greater than the size of args {wrapper.args} in {wrapper} in {self}."
+                            assert (
+                                0 <= len(wrapper.args) - len(layouts) <= 1
+                            ), f"The size of layouts {layouts} doesn't match the size of args {wrapper.args} in {wrapper} in {self}."
+                            layouts = layouts + layouts[-1] * (
+                                len(wrapper.args) - len(layouts)
+                            )
                             for arg, layout in zip(wrapper.args, layouts):
                                 arg_name: str = arg.get_name()
                                 layout_map[arg_name] += [layout]
-                    choices[k] = (min_v, layout_map)
+                    assert (
+                        output_key in layout_map
+                    ), f"Output {output_key} not found in {layout_map} for {wrapper} in {self}."
+                    choices[k] = (min_v, {**layout_map})
             elif wrapper.force_layout:
                 input_shape: List[int] = (
                     wrapper.arg_types[input_idx].shape if input_idx is not None else []
@@ -195,14 +209,6 @@ class Sequence(Scope):
                 raise NotImplementedError(
                     f"Unsupported OpWrapper: {wrapper} in {self.__class__.__name__}.schedule."
                 )
-            input_key: Union[str, DummyValue] = (
-                input.get_name() if isinstance(input, iree.compiler.ir.Value) else input
-            )
-            output_key: Union[str, DummyValue] = (
-                output.get_name()
-                if isinstance(output, iree.compiler.ir.Value)
-                else output
-            )
             if idx == 0:
                 wind += [
                     (input_key, {k: (t, None, m) for (k, _), (t, m) in choices.items()})
@@ -218,7 +224,7 @@ class Sequence(Scope):
             exec_time_table: Dict[
                 Tuple[int, ...],
                 Tuple[float, Tuple[int, ...], Dict[str, List[Tuple[int, ...]]]],
-            ] = defaultdict(lambda: (sys.float_info.max, None, {}))
+            ] = dict()
             for input_layout in input_layouts:
                 prev_exec_time, _, _ = ktable[input_layout]
                 for output_layout in (
@@ -228,14 +234,16 @@ class Sequence(Scope):
                         (input_layout, output_layout)
                     ]
                     total_exec_time: float = prev_exec_time + kernel_exec_time
-                    curr_exec_time, _, _ = exec_time_table[output_layout]
+                    curr_exec_time, _, _ = exec_time_table.get(
+                        output_layout, (sys.float_info.max, None, {})
+                    )
                     if curr_exec_time > total_exec_time:
                         exec_time_table[output_layout] = (
                             total_exec_time,
                             input_layout,
                             layout_map,
                         )
-            wind += [(output_key, {**exec_time_table})]
+            wind += [(output_key, exec_time_table)]
         group: ScheduleGroup = ScheduleGroup()
         if wind:
             lk, ltable = wind[-1]
