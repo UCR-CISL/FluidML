@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Union
 
 from .run import run
 
-COMPILATION_STAGES: List = [
+COMPILATION_STAGES: List[str] = [
     "start",
     "input",
     "abi",

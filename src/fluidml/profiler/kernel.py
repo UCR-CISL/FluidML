@@ -105,10 +105,10 @@ class KernelProfiler(Profiler):
                         sub_mod_texts: List[str] = []
                         for combination in combinations:
                             for idx, layout in enumerate(combination):
-                                kernel.attributes[
-                                    f"fluidml.{idx}"
-                                ] = iree.compiler.ir.Attribute.parse(
-                                    f"array<i64: {', '.join([str(dim) for dim in layout])}>"
+                                kernel.attributes[f"fluidml.{idx}"] = (
+                                    iree.compiler.ir.Attribute.parse(
+                                        f"array<i64: {', '.join([str(dim) for dim in layout])}>"
+                                    )
                                 )
                             sub_mod_text: str = str(sub_mod)
                             if self._profile_cache is not None:
@@ -197,10 +197,10 @@ class KernelProfiler(Profiler):
                                         error
                                         == cuda.bindings.runtime.cudaError_t.cudaSuccess
                                     ), f"cudaEventRecord failed: {error}"
-                                    (
-                                        error,
-                                    ) = cuda.bindings.runtime.cudaEventSynchronize(
-                                        end_event
+                                    (error,) = (
+                                        cuda.bindings.runtime.cudaEventSynchronize(
+                                            end_event
+                                        )
                                     )
                                     assert (
                                         error

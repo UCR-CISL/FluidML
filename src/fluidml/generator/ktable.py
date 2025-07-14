@@ -56,10 +56,10 @@ class KTable(object):
                         export.sym_name = iree.compiler.ir.StringAttr.get(kernel_name)
                         kernel_.sym_name = iree.compiler.ir.StringAttr.get(kernel_name)
                         for idx, layout in enumerate(layouts):
-                            kernel_.attributes[
-                                f"fluidml.{idx}"
-                            ] = iree.compiler.ir.ArrayAttr.parse(
-                                f"array<i64: {', '.join([str(dim) for dim in layout])}>"
+                            kernel_.attributes[f"fluidml.{idx}"] = (
+                                iree.compiler.ir.ArrayAttr.parse(
+                                    f"array<i64: {', '.join([str(dim) for dim in layout])}>"
+                                )
                             )
                         entry_points: iree.compiler.ir.ArrayAttr = (
                             iree.compiler.ir.Attribute.parse(

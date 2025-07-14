@@ -252,7 +252,7 @@ class Sequence(Scope):
             for layout, (time, prev, layout_map) in ltable.items():
                 if time == min_time:
                     rewind: Dict[Union[str, DummyValue], Tuple[int, ...]] = {lk: layout}
-                    for (ck, ctable) in wind[-2::-1]:
+                    for ck, ctable in wind[-2::-1]:
                         cur: Tuple[int, ...] = prev
                         for k, v in layout_map.items():
                             global_layout_map[k] += v
