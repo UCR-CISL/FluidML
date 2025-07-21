@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import concurrent.futures
-import cuda.bindings.runtime
-import gc
 import multiprocessing
 import iree.compiler.ir
 import iree.compiler.dialects.flow
@@ -11,16 +9,17 @@ import iree.compiler.dialects.util
 import iree.runtime
 import numpy as np
 import os
-import sys
-import time
+import re
 
 from itertools import product
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 from ..utils import KStat, permute_shape, map_str_dtype
 from .profiler import Profiler
 from .util import get_signature
+
+_MS_REGEX: re.Pattern = re.compile(r"(\d+(?:\.\d+)?)\s*ms")
 
 
 class KernelProfiler(Profiler):
@@ -153,76 +152,15 @@ class KernelProfiler(Profiler):
                             )
                             ctx.add_vm_module(vm_module)
                             inputs: List[np.ndarray] = [
-                                np.random.rand(*shape).astype(map_str_dtype(dtype))
+                                np.zeros(shape).astype(map_str_dtype(dtype))
                                 for shape, dtype in input_types
                             ]
-                            f: Callable = ctx.modules.module[fname]
-                            for _ in range(self._times // 10):
-                                f(*inputs)
-                            exec_time: float = sys.float_info.max
-                            for _ in range(self._times):
-                                gc.disable()
-                                if self._driver == "cuda":
-                                    (
-                                        error,
-                                        start_event,
-                                    ) = cuda.bindings.runtime.cudaEventCreate()
-                                    assert (
-                                        error
-                                        == cuda.bindings.runtime.cudaError_t.cudaSuccess
-                                    ), f"cudaEventCreate failed: {error}"
-                                    (
-                                        error,
-                                        end_event,
-                                    ) = cuda.bindings.runtime.cudaEventCreate()
-                                    assert (
-                                        error
-                                        == cuda.bindings.runtime.cudaError_t.cudaSuccess
-                                    ), f"cudaEventCreate failed: {error}"
-                                    cuda.bindings.runtime.cudaEventRecord(
-                                        start_event, 0
-                                    )
-                                else:
-                                    start: int = time.perf_counter_ns()
-                                try:
-                                    f(*inputs)
-                                except Exception as e:
-                                    gc.enable()
-                                    raise e
-                                if self._driver == "cuda":
-                                    (error,) = cuda.bindings.runtime.cudaEventRecord(
-                                        end_event, 0
-                                    )
-                                    assert (
-                                        error
-                                        == cuda.bindings.runtime.cudaError_t.cudaSuccess
-                                    ), f"cudaEventRecord failed: {error}"
-                                    (error,) = (
-                                        cuda.bindings.runtime.cudaEventSynchronize(
-                                            end_event
-                                        )
-                                    )
-                                    assert (
-                                        error
-                                        == cuda.bindings.runtime.cudaError_t.cudaSuccess
-                                    ), f"cudaEventSynchronize failed: {error}"
-                                    (
-                                        error,
-                                        cur_time,
-                                    ) = cuda.bindings.runtime.cudaEventElapsedTime(
-                                        start_event, end_event
-                                    )
-                                    assert (
-                                        error
-                                        == cuda.bindings.runtime.cudaError_t.cudaSuccess
-                                    ), f"cudaEventElapsedTime failed: {error}"
-                                    cur_time = cur_time * 1e6
-                                else:
-                                    end: int = time.perf_counter_ns()
-                                    cur_time: float = (end - start) * 1.0
-                                gc.enable()
-                                exec_time = min(exec_time, cur_time)
-                            kstat[kernel_name, layouts] = exec_time
+                            [(_, time, _, _, _)] = iree.runtime.benchmark_module(
+                                vm_module, fname, inputs, device=self._driver
+                            )
+                            (time,) = _MS_REGEX.match(time).groups()
+                            time: float = float(time)
+                            kstat[kernel_name, layouts] = time
         return kstat
 
     @staticmethod
